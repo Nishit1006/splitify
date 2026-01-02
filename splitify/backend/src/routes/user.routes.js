@@ -1,14 +1,6 @@
 import { Router } from "express";
 import verifyJWT from "../middlewares/auth.middleware.js";
 
-import ApiError from "../utils/ApiError.js";
-import ApiResponse from "../utils/ApiResponse.js";
-import asyncHandler from "../utils/asyncHandler.js";
-import { verifyEmailOtp } from "../controllers/user.controller.js";
-
-
-
-
 import {
     registerUser,
     loginUser,
@@ -16,7 +8,10 @@ import {
     refreshAccessToken,
     changeCurrentPassword,
     getCurrentUser,
-    updateAccountDetails
+    updateAccountDetails,
+    verifyEmailOtp,
+    forgotPassword,
+    resetPassword
 } from "../controllers/user.controller.js";
 
 const router = Router();
@@ -29,5 +24,8 @@ router.get("/me", verifyJWT, getCurrentUser);
 router.patch("/update", verifyJWT, updateAccountDetails);
 router.patch("/change-password", verifyJWT, changeCurrentPassword);
 router.post("/verify-email-otp", verifyEmailOtp);
+
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password/:token", resetPassword);
 
 export default router;

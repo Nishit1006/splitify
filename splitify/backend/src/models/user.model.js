@@ -1,6 +1,7 @@
 import mongoose, { Schema } from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 
 const userSchema = new Schema(
     {
@@ -27,8 +28,6 @@ const userSchema = new Schema(
             type: String,
             required: true
         },
-
-        // 🔐 EMAIL VERIFICATION (OTP BASED)
         isVerified: {
             type: Boolean,
             default: false
@@ -39,26 +38,28 @@ const userSchema = new Schema(
         emailOtpExpiry: {
             type: Date
         },
-
         refreshToken: {
             type: String
+        },
+        resetPasswordToken: {
+            type: String
+        },
+        resetPasswordExpiry: {
+            type: Date
         }
     },
     { timestamps: true }
 );
 
-// 🔒 hash password
 userSchema.pre("save", async function () {
     if (!this.isModified("password")) return;
     this.password = await bcrypt.hash(this.password, 10);
 });
 
-// check password
 userSchema.methods.isPasswordCorrect = function (password) {
     return bcrypt.compare(password, this.password);
 };
 
-// generate access token
 userSchema.methods.generateAccessToken = function () {
     return jwt.sign(
         {
@@ -74,7 +75,6 @@ userSchema.methods.generateAccessToken = function () {
     );
 };
 
-// generate refresh token
 userSchema.methods.generateRefreshToken = function () {
     return jwt.sign(
         { _id: this._id },
@@ -83,6 +83,19 @@ userSchema.methods.generateRefreshToken = function () {
             expiresIn: process.env.REFRESH_TOKEN_EXPIRY || "7d"
         }
     );
+};
+
+userSchema.methods.generateResetPasswordToken = function () {
+    const resetToken = crypto.randomBytes(32).toString("hex");
+
+    this.resetPasswordToken = crypto
+        .createHash("sha256")
+        .update(resetToken)
+        .digest("hex");
+
+    this.resetPasswordExpiry = Date.now() + 15 * 60 * 1000;
+
+    return resetToken;
 };
 
 export const User = mongoose.model("User", userSchema);

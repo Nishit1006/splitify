@@ -5,6 +5,7 @@ import ApiResponse from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import crypto from "crypto";
 import { sendOtpEmail } from "../utils/email.js";
+import { sendResetPasswordEmail } from "../utils/email.js";
 /* ================= TOKEN UTILS ================= */
 
 const generateAccessAndRefreshTokens = async (userId) => {
@@ -283,3 +284,70 @@ export const verifyEmailOtp = asyncHandler(async (req, res) => {
     );
 });
 
+
+
+export const forgotPassword = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        throw new ApiError(400, "Email is required");
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    const resetToken = user.generateResetPasswordToken();
+    await user.save({ validateBeforeSave: false });
+
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+
+    await sendResetPasswordEmail(user.email, resetLink);
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            null,
+            "Reset password link sent to email"
+        )
+    );
+});
+
+export const resetPassword = asyncHandler(async (req, res) => {
+    const { token } = req.params;
+    const { newPassword } = req.body;
+
+    if (!newPassword) {
+        throw new ApiError(400, "New password is required");
+    }
+
+    const hashedToken = crypto
+        .createHash("sha256")
+        .update(token)
+        .digest("hex");
+
+    const user = await User.findOne({
+        resetPasswordToken: hashedToken,
+        resetPasswordExpiry: { $gt: Date.now() }
+    });
+
+    if (!user) {
+        throw new ApiError(400, "Invalid or expired token");
+    }
+
+    user.password = newPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpiry = undefined;
+    user.refreshToken = undefined;
+
+    await user.save();
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            null,
+            "Password reset successful"
+        )
+    );
+});
