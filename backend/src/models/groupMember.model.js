@@ -2,29 +2,25 @@ import mongoose, { Schema } from "mongoose";
 
 const groupMemberSchema = new Schema(
     {
-        groupId: {
+        group: {
             type: Schema.Types.ObjectId,
             ref: "Group",
-            required: true,
-            index: true
+            required: true
         },
-        userId: {
+        user: {
             type: Schema.Types.ObjectId,
             ref: "User",
-            required: true,
-            index: true
+            required: true
         },
-        joinedAt: {
-            type: Date,
-            default: Date.now
+        role: {
+            type: String,
+            enum: ["ADMIN", "MEMBER"],
+            default: "MEMBER"
         }
     },
-    {
-        timestamps: true
-    }
+    { timestamps: true }
 );
 
-// Compound unique index to prevent duplicate memberships
-//groupMemberSchema.index({ groupId: 1, userId: 1 }, { unique: true });
+groupMemberSchema.index({ group: 1, user: 1 }, { unique: true });
 
 export const GroupMember = mongoose.model("GroupMember", groupMemberSchema);

@@ -6,6 +6,9 @@ import errorHandler from "./middlewares/error.middleware.js";
 import healthRouter from "./routes/health.routes.js";
 import userRouter from "./routes/user.routes.js";
 
+
+import groupRoutes from "./routes/group.routes.js";
+
 const app = express();
 
 app.use(
@@ -22,6 +25,9 @@ app.use(cookieParser());
 
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/health", healthRouter);
+
+
+app.use("/api/v1/groups", groupRoutes);
 
 app.use(errorHandler);
 
