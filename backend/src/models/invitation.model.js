@@ -1,4 +1,5 @@
 import mongoose, { Schema } from "mongoose";
+import crypto from "crypto";
 
 const invitationSchema = new Schema(
     {
@@ -22,8 +23,8 @@ const invitationSchema = new Schema(
         },
         status: {
             type: String,
-            enum: ['PENDING', 'ACCEPTED', 'EXPIRED'],
-            default: 'PENDING',
+            enum: ["PENDING", "ACCEPTED", "REJECTED", "EXPIRED"],
+            default: "PENDING",
             uppercase: true
         },
         expiresAt: {
@@ -31,17 +32,24 @@ const invitationSchema = new Schema(
             required: true
         }
     },
-    {
-        timestamps: true
-    }
+    { timestamps: true }
 );
 
-// Auto-generate invite token before saving
-invitationSchema.pre("save", async function (next) {
-    if (this.isNew && !this.inviteToken) {
-        this.inviteToken = require('crypto').randomBytes(32).toString('hex');
+/* 🔐 Generate token BEFORE validation */
+invitationSchema.pre("validate", function () {
+    if (!this.inviteToken) {
+        const rawToken = crypto.randomBytes(32).toString("hex");
+
+        this.inviteToken = crypto
+            .createHash("sha256")
+            .update(rawToken)
+            .digest("hex");
+
+        this._rawToken = rawToken; // not persisted
     }
-    next();
 });
+
+/* ⏰ Auto-delete expired invitations */
+invitationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export const Invitation = mongoose.model("Invitation", invitationSchema);

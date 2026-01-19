@@ -5,7 +5,7 @@ import cookieParser from "cookie-parser";
 import errorHandler from "./middlewares/error.middleware.js";
 import healthRouter from "./routes/health.routes.js";
 import userRouter from "./routes/user.routes.js";
-
+import invitationRoutes from "./routes/invitation.routes.js";
 
 import groupRoutes from "./routes/group.routes.js";
 
@@ -28,6 +28,10 @@ app.use("/api/v1/health", healthRouter);
 
 
 app.use("/api/v1/groups", groupRoutes);
+
+
+
+app.use("/api/v1/invitations", invitationRoutes);
 
 app.use(errorHandler);
 

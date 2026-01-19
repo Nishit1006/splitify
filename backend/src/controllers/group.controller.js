@@ -36,7 +36,7 @@ export const getMyGroups = async (req, res) => {
     }).populate("group");
 
     const groups = memberships.map(m => m.group);
-
+    
     res.status(200).json({
         message: "Groups fetched successfully",
         groups
