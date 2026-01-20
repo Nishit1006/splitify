@@ -8,6 +8,7 @@ import userRouter from "./routes/user.routes.js";
 import invitationRoutes from "./routes/invitation.routes.js";
 
 import groupRoutes from "./routes/group.routes.js";
+import expenseRoutes from "./routes/expense.routes.js";
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use("/api/v1/groups", groupRoutes);
 
 
 app.use("/api/v1/invitations", invitationRoutes);
+app.use("/api/v1/expenses", expenseRoutes);
 
 app.use(errorHandler);
 
