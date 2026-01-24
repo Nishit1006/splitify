@@ -53,11 +53,10 @@ const settlementSchema = new Schema(
 //settlementSchema.index({ groupId: 1, settledAt: -1 });
 
 // Validation to prevent self-settlement
-settlementSchema.pre("save", async function (next) {
+settlementSchema.pre("save", async function () {
     if (this.paidFrom.equals(this.paidTo)) {
         throw new Error("Cannot settle with yourself");
     }
-    next();
 });
 
 export const Settlement = mongoose.model("Settlement", settlementSchema);

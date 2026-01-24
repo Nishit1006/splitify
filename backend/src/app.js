@@ -10,6 +10,10 @@ import invitationRoutes from "./routes/invitation.routes.js";
 import groupRoutes from "./routes/group.routes.js";
 import expenseRoutes from "./routes/expense.routes.js";
 
+import settlementRoutes from "./routes/settlement.routes.js";
+
+import balanceRoutes from "./routes/balance.routes.js";
+
 const app = express();
 
 app.use(
@@ -36,5 +40,11 @@ app.use("/api/v1/invitations", invitationRoutes);
 app.use("/api/v1/expenses", expenseRoutes);
 
 app.use(errorHandler);
+
+app.use("/api/v1/settlements", settlementRoutes);
+
+
+
+app.use("/api/v1/balances", balanceRoutes);
 
 export default app;

@@ -17,6 +17,7 @@ router.get(
     },
     verifyJWT,
     acceptInvitation
+    
 );
 
 router.post("/reject/:token", verifyJWT, rejectInvitation);
