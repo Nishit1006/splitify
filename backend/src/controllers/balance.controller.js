@@ -23,6 +23,7 @@ export const getGroupBalances = asyncHandler(async (req, res) => {
     if (!isMember) {
         throw new ApiError(403, "You are not a member of this group");
     }
+
     const members = await GroupMember.find({ group: groupId }).populate(
         "user",
         "username fullname avatar"
@@ -31,37 +32,58 @@ export const getGroupBalances = asyncHandler(async (req, res) => {
     const balanceMap = {};
 
     members.forEach(m => {
-        balanceMap[m.user._id.toString()] = {
-            user: m.user,
-            balance: 0
-        };
+        if (m.user) {
+            balanceMap[m.user._id.toString()] = {
+                user: m.user,
+                balance: 0
+            };
+        }
     });
 
     const expenses = await Expense.find({ groupId });
 
     for (const expense of expenses) {
-        const splits = await ExpenseSplit.find({
-            expenseId: expense._id
-        });
+        const payerId = expense.paidBy.toString();
 
-        balanceMap[expense.paidBy.toString()].balance += expense.totalAmount;
+        if (balanceMap[payerId]) {
+            balanceMap[payerId].balance += expense.totalAmount;
+        }
+
+        const splits = await ExpenseSplit.find({ expenseId: expense._id });
 
         for (const split of splits) {
-            balanceMap[split.userId.toString()].balance -= split.finalAmount;
+            const uid = split.userId.toString();
+            if (balanceMap[uid]) {
+                balanceMap[uid].balance -= split.finalAmount;
+            }
         }
     }
 
     const settlements = await Settlement.find({ groupId });
 
     for (const settlement of settlements) {
-        balanceMap[settlement.paidFrom.toString()].balance += settlement.amount;
-        balanceMap[settlement.paidTo.toString()].balance -= settlement.amount;
+        const fromId = settlement.paidFrom.toString();
+        const toId = settlement.paidTo.toString();
+
+        if (balanceMap[fromId]) {
+            balanceMap[fromId].balance += settlement.amount;
+        }
+
+        if (balanceMap[toId]) {
+            balanceMap[toId].balance -= settlement.amount;
+        }
     }
+
+    const myEntry = balanceMap[userId.toString()];
+
+    if (!myEntry) {
+        throw new ApiError(404, "Balance record not found for user");
+    }
+
+    const myBalance = myEntry.balance;
 
     const youOwe = [];
     const youGet = [];
-
-    const myBalance = balanceMap[userId.toString()].balance;
 
     Object.values(balanceMap).forEach(entry => {
         if (entry.user._id.toString() === userId.toString()) return;

@@ -9,6 +9,7 @@ import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { sendGroupInviteEmail } from "../utils/email.js";
+import createNotification from "../services/notification.service.js";
 
 export const inviteMemberByUsername = asyncHandler(async (req, res) => {
     const { groupId, username } = req.body;
@@ -72,6 +73,14 @@ export const inviteMemberByUsername = asyncHandler(async (req, res) => {
         rejectLink
     });
 
+    await createNotification({
+        userId: user._id,
+        message: `${req.user.username} invited you to join "${group.name}"`,
+        type: "group_invite",
+        relatedId: group._id,
+        relatedModel: "Group"
+    });
+
     res.status(201).json(
         new ApiResponse(201, null, "Invitation sent successfully")
     );
@@ -86,8 +95,6 @@ export const acceptInvitation = asyncHandler(async (req, res) => {
 
     const userId = req.user._id;
 
-    console.log("RAW TOKEN:", req.params.token);
-    
     const hashedToken = crypto
         .createHash("sha256")
         .update(token)
@@ -124,11 +131,27 @@ export const acceptInvitation = asyncHandler(async (req, res) => {
         });
     }
 
+    const admins = await GroupMember.find({
+        group: invitation.groupId,
+        role: "ADMIN"
+    });
+
+    const group = await Group.findById(invitation.groupId);
+
+    for (const admin of admins) {
+        await createNotification({
+            userId: admin.user,
+            message: `${user.username} joined your group "${group.name}"`,
+            type: "member_added",
+            relatedId: invitation.groupId,
+            relatedModel: "Group"
+        });
+    }
+
     res.status(200).json(
         new ApiResponse(200, null, "Joined group successfully")
     );
 });
-
 
 export const rejectInvitation = asyncHandler(async (req, res) => {
     const { token } = req.params;

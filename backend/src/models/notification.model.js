@@ -25,7 +25,7 @@ const notificationSchema = new Schema(
             index: true
         },
         relatedId: {
-            type: Schema.Types.ObjectId, // Can reference expense, group, or settlement
+            type: Schema.Types.ObjectId, 
         },
         relatedModel: {
             type: String,

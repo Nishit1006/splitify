@@ -4,6 +4,7 @@ import { GroupMember } from "../models/groupMember.model.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
+import createNotification from "../services/notification.service.js";
 
 export const createSettlement = asyncHandler(async (req, res) => {
     const { groupId, paidTo, amount, paymentMethod, referenceNote, proof } = req.body;
@@ -38,6 +39,14 @@ export const createSettlement = asyncHandler(async (req, res) => {
         paymentMethod,
         referenceNote,
         proof
+    });
+
+    await createNotification({
+        userId: paidTo,
+        message: `${req.user.username} settled ₹${amount} with you`,
+        type: "settlement_received",
+        relatedId: settlement._id,
+        relatedModel: "Settlement"
     });
 
     const populatedSettlement = await Settlement.findById(settlement._id)

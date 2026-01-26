@@ -4,6 +4,7 @@ import { GroupMember } from "../models/groupMember.model.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
+import createNotification from "../services/notification.service.js";
 import mongoose from "mongoose";
 
 export const addExpense = asyncHandler(async (req, res) => {
@@ -47,9 +48,7 @@ export const addExpense = asyncHandler(async (req, res) => {
             splitValue: 1,
             finalAmount: perPersonAmount
         }));
-    }
-
-    else if (splitType === "EXACT") {
+    } else if (splitType === "EXACT") {
         const totalSplit = splits.reduce((sum, s) => sum + s.amount, 0);
 
         if (Math.abs(totalSplit - totalAmount) > 0.01) {
@@ -62,9 +61,7 @@ export const addExpense = asyncHandler(async (req, res) => {
             splitValue: s.amount,
             finalAmount: s.amount
         }));
-    }
-
-    else if (splitType === "PERCENTAGE") {
+    } else if (splitType === "PERCENTAGE") {
         const totalPercentage = splits.reduce((sum, s) => sum + s.percentage, 0);
 
         if (Math.abs(totalPercentage - 100) > 0.01) {
@@ -77,9 +74,7 @@ export const addExpense = asyncHandler(async (req, res) => {
             splitValue: s.percentage,
             finalAmount: (totalAmount * s.percentage) / 100
         }));
-    }
-
-    else if (splitType === "SHARES") {
+    } else if (splitType === "SHARES") {
         const totalShares = splits.reduce((sum, s) => sum + s.shares, 0);
         const perShare = totalAmount / totalShares;
 
@@ -94,6 +89,20 @@ export const addExpense = asyncHandler(async (req, res) => {
     }
 
     await ExpenseSplit.insertMany(expenseSplits);
+
+    const groupMembers = await GroupMember.find({ group: groupId });
+
+    for (const member of groupMembers) {
+        if (member.user.toString() !== req.user._id.toString()) {
+            await createNotification({
+                userId: member.user,
+                message: `${req.user.username} added an expense "${expense.title}"`,
+                type: "expense_added",
+                relatedId: expense._id,
+                relatedModel: "Expense"
+            });
+        }
+    }
 
     const populatedExpense = await Expense.findById(expense._id)
         .populate("paidBy", "username fullname avatar")
@@ -132,8 +141,6 @@ export const getGroupExpenses = asyncHandler(async (req, res) => {
     );
 });
 
-
-
 export const getExpenseById = asyncHandler(async (req, res) => {
     const { expenseId } = req.params;
 
@@ -156,14 +163,12 @@ export const getExpenseById = asyncHandler(async (req, res) => {
 
     const splits = await ExpenseSplit.find({
         expenseId: new mongoose.Types.ObjectId(expenseId)
-    })
-    .populate("userId", "username fullname avatar");
+    }).populate("userId", "username fullname avatar");
 
     res.status(200).json(
         new ApiResponse(200, { expense, splits }, "Expense details fetched")
     );
 });
-
 
 export const updateExpense = asyncHandler(async (req, res) => {
     const { expenseId } = req.params;
@@ -187,7 +192,6 @@ export const updateExpense = asyncHandler(async (req, res) => {
     await expense.save();
 
     if (splits && Array.isArray(splits) && splits.length > 0) {
-
         await ExpenseSplit.deleteMany({
             expenseId: new mongoose.Types.ObjectId(expenseId)
         });
@@ -203,27 +207,21 @@ export const updateExpense = asyncHandler(async (req, res) => {
                 splitValue: 1,
                 finalAmount: perPersonAmount
             }));
-        }
-
-        else if (expense.splitType === "EXACT") {
+        } else if (expense.splitType === "EXACT") {
             expenseSplits = splits.map(s => ({
                 expenseId: expense._id,
                 userId: s.userId,
                 splitValue: s.amount,
                 finalAmount: s.amount
             }));
-        }
-
-        else if (expense.splitType === "PERCENTAGE") {
+        } else if (expense.splitType === "PERCENTAGE") {
             expenseSplits = splits.map(s => ({
                 expenseId: expense._id,
                 userId: s.userId,
                 splitValue: s.percentage,
                 finalAmount: (expense.totalAmount * s.percentage) / 100
             }));
-        }
-
-        else if (expense.splitType === "SHARES") {
+        } else if (expense.splitType === "SHARES") {
             const totalShares = splits.reduce((sum, s) => sum + s.shares, 0);
 
             expenseSplits = splits.map(s => ({
@@ -237,13 +235,26 @@ export const updateExpense = asyncHandler(async (req, res) => {
         await ExpenseSplit.insertMany(expenseSplits);
     }
 
+    const groupMembers = await GroupMember.find({ group: expense.groupId });
+
+    for (const member of groupMembers) {
+        if (member.user.toString() !== req.user._id.toString()) {
+            await createNotification({
+                userId: member.user,
+                message: `${req.user.username} updated an expense "${expense.title}"`,
+                type: "expense_updated",
+                relatedId: expense._id,
+                relatedModel: "Expense"
+            });
+        }
+    }
+
     const updatedExpense = await Expense.findById(expenseId)
         .populate("paidBy", "username fullname avatar");
 
     const updatedSplits = await ExpenseSplit.find({
         expenseId: new mongoose.Types.ObjectId(expenseId)
-    })
-    .populate("userId", "username fullname avatar");
+    }).populate("userId", "username fullname avatar");
 
     res.status(200).json(
         new ApiResponse(
@@ -265,6 +276,20 @@ export const deleteExpense = asyncHandler(async (req, res) => {
 
     if (expense.paidBy.toString() !== req.user._id.toString()) {
         throw new ApiError(403, "Only expense creator can delete");
+    }
+
+    const groupMembers = await GroupMember.find({ group: expense.groupId });
+
+    for (const member of groupMembers) {
+        if (member.user.toString() !== req.user._id.toString()) {
+            await createNotification({
+                userId: member.user,
+                message: `${req.user.username} deleted an expense "${expense.title}"`,
+                type: "other",
+                relatedId: expense._id,
+                relatedModel: "Expense"
+            });
+        }
     }
 
     await ExpenseSplit.deleteMany({
