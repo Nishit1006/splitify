@@ -1,5 +1,9 @@
 import express from "express";
-import { getGroupBalances } from "../controllers/balance.controller.js";
+import {
+    getGroupBalances,
+    getMyNetGroupBalance,
+    getTotalUserNetBalance
+} from "../controllers/balance.controller.js";
 import protect from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
@@ -7,5 +11,7 @@ const router = express.Router();
 router.use(protect);
 
 router.get("/group/:groupId", getGroupBalances);
+router.get("/group/:groupId/net", getMyNetGroupBalance);
+router.get("/user/net", getTotalUserNetBalance);
 
 export default router;

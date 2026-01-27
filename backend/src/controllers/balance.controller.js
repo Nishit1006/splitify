@@ -117,3 +117,162 @@ export const getGroupBalances = asyncHandler(async (req, res) => {
         )
     );
 });
+
+export const getTotalUserNetBalance = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+
+    let netBalance = 0;
+
+    const groupMemberships = await GroupMember.find({ user: userId });
+
+    const groupIds = groupMemberships.map(g => g.group);
+
+    const expenses = await Expense.find({ groupId: { $in: groupIds } });
+
+    for (const expense of expenses) {
+        if (expense.paidBy.toString() === userId.toString()) {
+            netBalance += expense.totalAmount;
+        }
+
+        const split = await ExpenseSplit.findOne({
+            expenseId: expense._id,
+            userId
+        });
+
+        if (split) {
+            netBalance -= split.finalAmount;
+        }
+    }
+
+    const settlements = await Settlement.find({
+        $or: [
+            { paidFrom: userId },
+            { paidTo: userId }
+        ]
+    });
+
+    for (const settlement of settlements) {
+        if (settlement.paidFrom.toString() === userId.toString()) {
+            netBalance += settlement.amount;
+        }
+        if (settlement.paidTo.toString() === userId.toString()) {
+            netBalance -= settlement.amount;
+        }
+    }
+
+    res.status(200).json(
+        new ApiResponse(
+            200,
+            { netBalance: Number(netBalance.toFixed(2)) },
+            "Total net balance calculated successfully"
+        )
+    );
+});
+
+export const getMyNetGroupBalance = asyncHandler(async (req, res) => {
+    const { groupId } = req.params;
+    const userId = req.user._id;
+
+    if (!mongoose.Types.ObjectId.isValid(groupId)) {
+        throw new ApiError(400, "Invalid group id");
+    }
+
+    const isMember = await GroupMember.findOne({ group: groupId, user: userId });
+    if (!isMember) {
+        throw new ApiError(403, "You are not a member of this group");
+    }
+
+    let myBalance = 0;
+
+    const expenses = await Expense.find({ groupId });
+
+    for (const expense of expenses) {
+        if (expense.paidBy.toString() === userId.toString()) {
+            myBalance += expense.totalAmount;
+        }
+
+        const split = await ExpenseSplit.findOne({
+            expenseId: expense._id,
+            userId
+        });
+
+        if (split) {
+            myBalance -= split.finalAmount;
+        }
+    }
+
+    const settlements = await Settlement.find({ groupId });
+
+    for (const settlement of settlements) {
+        if (settlement.paidFrom.toString() === userId.toString()) {
+            myBalance += settlement.amount;
+        }
+        if (settlement.paidTo.toString() === userId.toString()) {
+            myBalance -= settlement.amount;
+        }
+    }
+
+    const members = await GroupMember.find({ group: groupId }).populate(
+        "user",
+        "username fullname avatar"
+    );
+
+    const youOwe = [];
+    const youGet = [];
+
+    for (const member of members) {
+        if (member.user._id.toString() === userId.toString()) continue;
+
+        let otherBalance = 0;
+
+        for (const expense of expenses) {
+            if (expense.paidBy.toString() === member.user._id.toString()) {
+                otherBalance += expense.totalAmount;
+            }
+
+            const split = await ExpenseSplit.findOne({
+                expenseId: expense._id,
+                userId: member.user._id
+            });
+
+            if (split) {
+                otherBalance -= split.finalAmount;
+            }
+        }
+
+        for (const settlement of settlements) {
+            if (settlement.paidFrom.toString() === member.user._id.toString()) {
+                otherBalance += settlement.amount;
+            }
+            if (settlement.paidTo.toString() === member.user._id.toString()) {
+                otherBalance -= settlement.amount;
+            }
+        }
+
+        if (myBalance < 0 && otherBalance > 0) {
+            youOwe.push({
+                user: member.user,
+                amount: Math.min(otherBalance, Math.abs(myBalance))
+            });
+        }
+
+        if (myBalance > 0 && otherBalance < 0) {
+            youGet.push({
+                user: member.user,
+                amount: Math.min(myBalance, Math.abs(otherBalance))
+            });
+        }
+    }
+
+    res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                netBalance: Number(myBalance.toFixed(2)),
+                youOwe,
+                youGet
+            },
+            "Group net balance calculated successfully"
+        )
+    );
+});
