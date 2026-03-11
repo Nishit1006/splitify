@@ -1,7 +1,23 @@
+import { RouterProvider } from 'react-router-dom';
+import { Toaster } from 'sonner';
+import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
+import router from './router';
+
 export default function App() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white text-4xl font-bold">
-      Splitify is Ready 🚀
-    </div>
+    <ThemeProvider>
+      <AuthProvider>
+        <RouterProvider router={router} />
+        <Toaster
+          position="top-right"
+          richColors
+          closeButton
+          toastOptions={{
+            className: 'font-sans',
+          }}
+        />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

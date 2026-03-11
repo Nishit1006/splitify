@@ -25,7 +25,7 @@ const notificationSchema = new Schema(
             index: true
         },
         relatedId: {
-            type: Schema.Types.ObjectId, 
+            type: Schema.Types.ObjectId,
         },
         relatedModel: {
             type: String,

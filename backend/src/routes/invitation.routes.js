@@ -1,8 +1,8 @@
 import express from "express";
-import { 
-    inviteMemberByUsername, 
-    acceptInvitation, 
-    rejectInvitation 
+import {
+    inviteMemberByUsername,
+    acceptInvitation,
+    rejectInvitation
 } from "../controllers/invitation.controller.js";
 import verifyJWT from "../middlewares/auth.middleware.js";
 
@@ -17,7 +17,7 @@ router.get(
     },
     verifyJWT,
     acceptInvitation
-    
+
 );
 
 router.post("/reject/:token", verifyJWT, rejectInvitation);
