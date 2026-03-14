@@ -1,36 +1,69 @@
-import { useEffect, useState } from 'react';
+// import { useEffect, useState } from 'react';
+// import { useParams, useNavigate } from 'react-router-dom';
+// import { CheckCircle, XCircle, Loader2, Users } from 'lucide-react';
+// import api from '../../lib/api';
+// import Button from '../../components/ui/Button';
+
+// export default function RejectInvitePage() {
+//     const { token } = useParams();
+//     const navigate = useNavigate();
+//     const [status, setStatus] = useState('loading');
+//     const [message, setMessage] = useState('');
+
+//     useEffect(() => {
+//         let cancelled = false;
+
+//         async function reject() {
+//             try {
+//                 const { data } = await api.post(`/invitations/reject/${token}`);
+//                 if (!cancelled) {
+//                     setStatus('success');
+//                     setMessage(data.message || 'Invitation declined.');
+//                 }
+//             } catch (err) {
+//                 if (!cancelled) {
+//                     setStatus('error');
+//                     const msg = err.response?.data?.message || 'Something went wrong';
+//                     setMessage(msg);
+//                 }
+//             }
+//         }
+
+//         reject();
+//         return () => { cancelled = true; };
+//     }, [token]);
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { CheckCircle, XCircle, Loader2, Users } from 'lucide-react';
 import api from '../../lib/api';
 import Button from '../../components/ui/Button';
 
+
+//Fix the RejectInvite Bug 
 export default function RejectInvitePage() {
     const { token } = useParams();
     const navigate = useNavigate();
     const [status, setStatus] = useState('loading');
     const [message, setMessage] = useState('');
+    const hasRejected = useRef(false);
 
     useEffect(() => {
-        let cancelled = false;
+        if (hasRejected.current) return;
+        hasRejected.current = true;
 
         async function reject() {
             try {
                 const { data } = await api.post(`/invitations/reject/${token}`);
-                if (!cancelled) {
-                    setStatus('success');
-                    setMessage(data.message || 'Invitation declined.');
-                }
+                setStatus('success');
+                setMessage(data.message || 'Invitation declined.');
             } catch (err) {
-                if (!cancelled) {
-                    setStatus('error');
-                    const msg = err.response?.data?.message || 'Something went wrong';
-                    setMessage(msg);
-                }
+                setStatus('error');
+                const msg = err.response?.data?.message || 'Something went wrong';
+                setMessage(msg);
             }
         }
 
         reject();
-        return () => { cancelled = true; };
     }, [token]);
 
     return (
