@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { CheckCircle, XCircle, Loader2, Users, ArrowRight } from 'lucide-react';
 import api from '../../lib/api';
@@ -9,28 +9,26 @@ export default function AcceptInvitePage() {
     const navigate = useNavigate();
     const [status, setStatus] = useState('loading'); // loading | success | error
     const [message, setMessage] = useState('');
+    const hasAccepted = useRef(false);
 
+    //fix this Accept invite message 3
     useEffect(() => {
-        let cancelled = false;
+        if (hasAccepted.current) return;
+        hasAccepted.current = true;
 
         async function accept() {
             try {
                 const { data } = await api.get(`/invitations/accept/${token}`);
-                if (!cancelled) {
-                    setStatus('success');
-                    setMessage(data.message || 'You have joined the group!');
-                }
+                setStatus('success');
+                setMessage(data.message || 'You have joined the group!');
             } catch (err) {
-                if (!cancelled) {
-                    setStatus('error');
-                    const msg = err.response?.data?.message || 'Something went wrong';
-                    setMessage(msg);
-                }
+                setStatus('error');
+                const msg = err.response?.data?.message || 'Something went wrong';
+                setMessage(msg);
             }
         }
 
         accept();
-        return () => { cancelled = true; };
     }, [token]);
 
     return (
