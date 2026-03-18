@@ -95,7 +95,7 @@ export default function Navbar({ onMenuClick }) {
                             className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800"
                         >
                             <Avatar name={user?.fullName} size="sm" />
-                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden sm:block max-w-[120px] truncate">
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden sm:block max-w-30 truncate">
                                 {user?.fullName}
                             </span>
                             <ChevronDown className="w-4 h-4 text-gray-400 hidden sm:block" />

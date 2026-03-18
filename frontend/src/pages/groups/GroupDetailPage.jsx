@@ -286,7 +286,7 @@ export default function GroupDetailPage() {
             <Modal open={showRemoveModal} onClose={() => setShowRemoveModal(false)} title="Remove Member" size="sm">
                 <div className="space-y-4">
                     {/* <p >Are you sure you want to remove <strong>{selectedMember?.user?.fullName || selectedMember?.user?.username}</strong> from this group?</p> */}
-                    <p className="text-black">
+                    <p className="text-black dark:text-white">
                         Are you sure you want to remove{" "}
                         <strong>
                             {selectedMember?.user?.fullName || selectedMember?.user?.username}
