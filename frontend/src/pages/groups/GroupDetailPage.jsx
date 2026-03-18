@@ -15,8 +15,11 @@ import BalanceSummary from '../../components/balances/BalanceSummary';
 import SettleUpModal from '../../components/settlements/SettleUpModal';
 import SettlementCard from '../../components/settlements/SettlementCard';
 import InviteMemberModal from '../../components/groups/InviteMemberModal';
+import Modal from '../../components/ui/Modal';
 import { cn } from '../../lib/utils';
 import api from '../../lib/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { toast } from 'sonner';
 
 const TABS = [
     { id: 'expenses', label: 'Expenses', icon: Receipt },
@@ -76,6 +79,33 @@ export default function GroupDetailPage() {
     useEffect(() => {
         fetchData();
     }, [groupId]);
+
+    const { user } = useAuth();
+
+    const [showRemoveModal, setShowRemoveModal] = useState(false);
+    const [selectedMember, setSelectedMember] = useState(null);
+    const [removing, setRemoving] = useState(false);
+
+    const openRemoveModal = (member) => {
+        setSelectedMember(member);
+        setShowRemoveModal(true);
+    };
+
+    const handleRemoveMember = async () => {
+        if (!selectedMember) return;
+        setRemoving(true);
+        try {
+            await api.delete(`/group-members/${groupId}/${selectedMember.user._id}`);
+            toast.success('Member removed successfully');
+            setShowRemoveModal(false);
+            setSelectedMember(null);
+            fetchData();
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Failed to remove member');
+        } finally {
+            setRemoving(false);
+        }
+    };
 
     const handleExpenseAdded = () => {
         fetchData();
@@ -198,15 +228,25 @@ export default function GroupDetailPage() {
                                     />
                                 ) : (
                                     members.map((m) => (
-                                        <div key={m.user?._id} className="px-6 py-3 flex items-center gap-3">
-                                            <Avatar name={m.user?.fullName || m.user?.username} />
+                                        <div key={m.user?._id} className="px-6 py-3 flex items-center gap-3 justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <Avatar name={m.user?.fullName || m.user?.username} />
+                                                <div>
+                                                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                                        {m.user?.fullName}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                        @{m.user?.username}
+                                                    </p>
+                                                </div>
+                                            </div>
                                             <div>
-                                                <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                                    {m.user?.fullName}
-                                                </p>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                                    @{m.user?.username}
-                                                </p>
+                                                { /* show remove button only when current user is ADMIN and target is not ADMIN */}
+                                                {user && members.find(x => x.user?._id === user._id)?.role === 'ADMIN' && m.role !== 'ADMIN' && (
+                                                    <Button variant="danger" size="sm" onClick={() => openRemoveModal(m)}>
+                                                        Remove
+                                                    </Button>
+                                                )}
                                             </div>
                                         </div>
                                     ))
@@ -241,6 +281,26 @@ export default function GroupDetailPage() {
                     onSettled={fetchData}
                 />
             )}
+
+            {/* Remove confirmation modal */}
+            <Modal open={showRemoveModal} onClose={() => setShowRemoveModal(false)} title="Remove Member" size="sm">
+                <div className="space-y-4">
+                    {/* <p >Are you sure you want to remove <strong>{selectedMember?.user?.fullName || selectedMember?.user?.username}</strong> from this group?</p> */}
+                    <p className="text-black">
+                        Are you sure you want to remove{" "}
+                        <strong>
+                            {selectedMember?.user?.fullName || selectedMember?.user?.username}
+                        </strong>{" "}
+                        from this group?
+                    </p>
+                    <div className="flex justify-end gap-2">
+                        <Button variant="secondary" size="sm" onClick={() => setShowRemoveModal(false)}>Cancel</Button>
+                        <Button variant="danger" size="sm" onClick={handleRemoveMember} disabled={removing}>
+                            {removing ? 'Removing...' : 'Remove'}
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }
