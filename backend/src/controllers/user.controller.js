@@ -6,6 +6,8 @@ import asyncHandler from "../utils/asyncHandler.js";
 import crypto from "crypto";
 import { sendOtpEmail } from "../utils/email.js";
 import { sendResetPasswordEmail } from "../utils/email.js";
+import { generateOtp } from "../utils/generateOtp.js";
+
 /* ================= TOKEN UTILS ================= */
 
 const generateAccessAndRefreshTokens = async (userId) => {
@@ -26,7 +28,6 @@ const generateAccessAndRefreshTokens = async (userId) => {
 };
 
 /* ================= REGISTER ================= */
-import { generateOtp } from "../utils/generateOtp.js";
 
 export const registerUser = asyncHandler(async (req, res) => {
     let { fullName, email, username, password } = req.body;
@@ -38,11 +39,26 @@ export const registerUser = asyncHandler(async (req, res) => {
     email = email.toLowerCase().trim();
     username = username.toLowerCase().trim();
 
-    const emailExists = await User.findOne({ email });
-    if (emailExists) {
-        throw new ApiError(409, "Email already exists");
+    // ── Check for existing VERIFIED users ──
+    const verifiedEmailExists = await User.findOne({ email, isVerified: true });
+    if (verifiedEmailExists) {
+        throw new ApiError(409, "Email already registered");
     }
 
+    const verifiedUsernameExists = await User.findOne({ username, isVerified: true });
+    if (verifiedUsernameExists) {
+        throw new ApiError(409, "Username already taken");
+    }
+
+    // ── Clean up any old unverified accounts with same email or username ──
+    // This handles the case where someone registered with wrong email
+    // or wrong username and is trying again
+    await User.deleteMany({
+        isVerified: false,
+        $or: [{ email }, { username }]
+    });
+
+    // ── Now safely create the new user ──
     const otp = generateOtp();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
@@ -65,11 +81,6 @@ export const registerUser = asyncHandler(async (req, res) => {
         new ApiResponse(201, null, "OTP sent to email")
     );
 });
-
-
-
-
-
 
 /* ================= LOGIN ================= */
 
@@ -233,6 +244,8 @@ export const updateAccountDetails = asyncHandler(async (req, res) => {
     );
 });
 
+/* ================= VERIFY EMAIL (token-based — legacy) ================= */
+
 export const verifyEmail = asyncHandler(async (req, res) => {
     const { token } = req.params;
 
@@ -252,6 +265,8 @@ export const verifyEmail = asyncHandler(async (req, res) => {
         new ApiResponse(200, null, "Email verified successfully")
     );
 });
+
+/* ================= VERIFY EMAIL OTP ================= */
 
 export const verifyEmailOtp = asyncHandler(async (req, res) => {
     const { email, otp } = req.body;
@@ -284,7 +299,7 @@ export const verifyEmailOtp = asyncHandler(async (req, res) => {
     );
 });
 
-
+/* ================= FORGOT PASSWORD ================= */
 
 export const forgotPassword = asyncHandler(async (req, res) => {
     const { email } = req.body;
@@ -306,13 +321,11 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     await sendResetPasswordEmail(user.email, resetLink);
 
     return res.status(200).json(
-        new ApiResponse(
-            200,
-            null,
-            "Reset password link sent to email"
-        )
+        new ApiResponse(200, null, "Reset password link sent to email")
     );
 });
+
+/* ================= RESET PASSWORD ================= */
 
 export const resetPassword = asyncHandler(async (req, res) => {
     const { token } = req.params;
@@ -344,10 +357,6 @@ export const resetPassword = asyncHandler(async (req, res) => {
     await user.save();
 
     return res.status(200).json(
-        new ApiResponse(
-            200,
-            null,
-            "Password reset successful"
-        )
+        new ApiResponse(200, null, "Password reset successful")
     );
 });
