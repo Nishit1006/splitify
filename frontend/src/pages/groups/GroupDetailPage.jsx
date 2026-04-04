@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, Plus, UserPlus, Receipt, Wallet, Users, Handshake, LogOut,
@@ -21,6 +21,7 @@ import { cn } from '../../lib/utils';
 import api from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
+import gsap from 'gsap';
 
 const TABS = [
     { id: 'expenses', label: 'Expenses', icon: Receipt },
@@ -189,12 +190,12 @@ export default function GroupDetailPage() {
                 <div className="flex items-center gap-3">
                     <Link
                         to="/groups"
-                        className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+                        className="p-2 rounded-xl text-gray-500 hover:bg-gray-100/80 dark:hover:bg-gray-800/60 transition-all duration-200"
                     >
                         <ArrowLeft className="w-5 h-5" />
                     </Link>
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                        <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
                             {groupName || 'Group'}
                         </h1>
                     </div>
@@ -218,16 +219,16 @@ export default function GroupDetailPage() {
                 </div>
             </div>
 
-            <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl overflow-x-auto">
+            <div className="flex gap-1 p-1.5 bg-gray-100/80 dark:bg-gray-800/60 rounded-2xl overflow-x-auto">
                 {TABS.map((tab) => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         className={cn(
-                            'flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap flex-1',
+                            'flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap flex-1',
                             'transition-all duration-200',
                             activeTab === tab.id
-                                ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm'
+                                ? 'bg-white dark:bg-gray-900/90 text-gray-900 dark:text-white shadow-sm'
                                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                         )}
                     >

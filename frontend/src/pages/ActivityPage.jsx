@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Bell, CheckCheck, Eye } from 'lucide-react';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -9,16 +9,17 @@ import { formatDate } from '../lib/utils';
 import { toast } from 'sonner';
 import api from '../lib/api';
 import ViewSettlementModal from '../components/settlements/ViewSettlementModal';
+import gsap from 'gsap';
 
 export default function ActivityPage() {
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedSettle, setSelectedSettle] = useState(null);
     const [isViewOpen, setIsViewOpen] = useState(false);
+    const listRef = useRef(null);
 
     const handleViewSettlement = async (notif) => {
         if (!notif.isRead) markOneRead(notif._id);
-
         try {
             const { data } = await api.get(`/settlements/${notif.relatedId}`);
             setSelectedSettle(data.data);
@@ -42,6 +43,16 @@ export default function ActivityPage() {
     useEffect(() => {
         fetchNotifications();
     }, []);
+
+    useEffect(() => {
+        if (!loading && listRef.current && listRef.current.children.length > 0) {
+            gsap.fromTo(
+                listRef.current.children,
+                { opacity: 0, x: -10 },
+                { opacity: 1, x: 0, duration: 0.3, stagger: 0.04, ease: 'power2.out' }
+            );
+        }
+    }, [loading]);
 
     const markAllRead = async () => {
         try {
@@ -103,9 +114,11 @@ export default function ActivityPage() {
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Activity</h1>
-                    <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-                        {unreadCount > 0 ? `${unreadCount} unread notifications` : 'All caught up!'}
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+                        Activity <Bell className="w-6 h-6 text-brand-500" />
+                    </h1>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm mt-1.5">
+                        {unreadCount > 0 ? `${unreadCount} unread notifications` : 'All caught up! 🎉'}
                     </p>
                 </div>
                 {unreadCount > 0 && (
@@ -116,11 +129,11 @@ export default function ActivityPage() {
             </div>
 
             <Card>
-                <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                <div ref={listRef} className="divide-y divide-gray-100/80 dark:divide-gray-800/60">
                     {loading ? (
                         [1, 2, 3, 4, 5].map((i) => (
                             <div key={i} className="px-6 py-4 flex gap-3">
-                                <Skeleton className="w-2 h-2 rounded-full mt-2" />
+                                <Skeleton className="w-2.5 h-2.5 rounded-full mt-2" />
                                 <div className="flex-1 space-y-2">
                                     <Skeleton className="h-4 w-3/4" />
                                     <Skeleton className="h-3 w-1/4" />
@@ -139,17 +152,16 @@ export default function ActivityPage() {
                             <div
                                 key={notif._id}
                                 onClick={() => !notif.isRead && markOneRead(notif._id)}
-                                className={`px-6 py-4 flex items-start gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 ${!notif.isRead ? 'bg-brand-50/50 dark:bg-brand-950/20' : ''
+                                className={`px-6 py-4 flex items-start gap-3 cursor-pointer transition-colors duration-200 hover:bg-gray-50/50 dark:hover:bg-gray-800/30 ${!notif.isRead ? 'bg-brand-50/30 dark:bg-brand-950/10' : ''
                                     }`}
                             >
                                 <div
-                                    className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${notif.isRead ? 'bg-gray-300 dark:bg-gray-600' : 'bg-brand-500'
+                                    className={`w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0 transition-all duration-200 ${notif.isRead ? 'bg-gray-300 dark:bg-gray-600' : 'bg-brand-500 shadow-glow-sm'
                                         }`}
                                 />
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm text-gray-700 dark:text-gray-300">{notif.message}</p>
 
-                                    {/* Action Buttons for Invites */}
                                     {notif.type === 'group_invite' && !notif.isRead && (
                                         <div className="flex items-center gap-2 mt-3">
                                             <Button

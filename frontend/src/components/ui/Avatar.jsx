@@ -7,36 +7,40 @@ const sizeMap = {
     xl: 'w-16 h-16 text-lg',
 };
 
-const colorPalette = [
-    'bg-brand-500',
-    'bg-emerald-500',
-    'bg-amber-500',
-    'bg-rose-500',
-    'bg-cyan-500',
-    'bg-violet-500',
-    'bg-pink-500',
-    'bg-teal-500',
+const gradientPalette = [
+    'from-brand-500 to-violet-500',
+    'from-emerald-500 to-teal-500',
+    'from-amber-500 to-orange-500',
+    'from-rose-500 to-pink-500',
+    'from-cyan-500 to-blue-500',
+    'from-violet-500 to-purple-500',
+    'from-pink-500 to-rose-500',
+    'from-teal-500 to-emerald-500',
 ];
 
-function getColorFromName(name) {
-    if (!name) return colorPalette[0];
+function getGradientFromName(name) {
+    if (!name) return gradientPalette[0];
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
         hash = name.charCodeAt(i) + ((hash << 5) - hash);
     }
-    return colorPalette[Math.abs(hash) % colorPalette.length];
+    return gradientPalette[Math.abs(hash) % gradientPalette.length];
 }
 
 export default function Avatar({ name, src, size = 'md', className }) {
     const initials = getInitials(name);
-    const bgColor = getColorFromName(name);
+    const gradient = getGradientFromName(name);
 
     if (src) {
         return (
             <img
                 src={src}
                 alt={name}
-                className={cn('rounded-full object-cover ring-2 ring-white dark:ring-gray-800', sizeMap[size], className)}
+                className={cn(
+                    'rounded-full object-cover ring-2 ring-white dark:ring-gray-800 shadow-sm',
+                    sizeMap[size],
+                    className
+                )}
             />
         );
     }
@@ -44,9 +48,10 @@ export default function Avatar({ name, src, size = 'md', className }) {
     return (
         <div
             className={cn(
-                'rounded-full flex items-center justify-center text-white font-semibold ring-2 ring-white dark:ring-gray-800',
+                'rounded-full flex items-center justify-center text-white font-bold',
+                'bg-gradient-to-br shadow-sm ring-2 ring-white dark:ring-gray-800',
                 sizeMap[size],
-                bgColor,
+                gradient,
                 className
             )}
             title={name}

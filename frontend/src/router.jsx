@@ -1,6 +1,14 @@
 import { createBrowserRouter } from 'react-router-dom';
 import AppLayout from './components/layout/AppLayout';
+import PublicLayout from './components/layout/PublicLayout';
 import ProtectedRoute from './components/ProtectedRoute';
+import PublicRoute from './components/PublicRoute';
+
+// Public pages
+import LandingPage from './pages/public/LandingPage';
+import AboutPage from './pages/public/AboutPage';
+import ContactPage from './pages/public/ContactPage';
+import FaqPage from './pages/public/FaqPage';
 
 // Auth pages
 import LoginPage from './pages/auth/LoginPage';
@@ -21,40 +29,43 @@ import AcceptInvitePage from './pages/invite/AcceptInvitePage';
 import RejectInvitePage from './pages/invite/RejectInvitePage';
 
 const router = createBrowserRouter([
-    // Public auth routes
-    { path: '/login', element: <LoginPage /> },
-    { path: '/signup', element: <SignupPage /> },
-    { path: '/verify-email', element: <VerifyOtpPage /> },
-    { path: '/forgot-password', element: <ForgotPasswordPage /> },
-    { path: '/reset-password/:token', element: <ResetPasswordPage /> },
+    // Public facing routes with layout
+    {
+        element: (
+             <PublicRoute>
+                 <PublicLayout />
+             </PublicRoute>
+        ),
+        children: [
+            { path: '/', element: <LandingPage /> },
+            { path: '/about', element: <AboutPage /> },
+            { path: '/contact', element: <ContactPage /> },
+            { path: '/faq', element: <FaqPage /> },
+        ]
+    },
 
-    // Protected invite routes (standalone full-screen, no AppLayout)
+    // Public auth routes (standalone, no layout)
+    { path: '/login', element: <PublicRoute><LoginPage /></PublicRoute> },
+    { path: '/signup', element: <PublicRoute><SignupPage /></PublicRoute> },
+    { path: '/verify-email', element: <PublicRoute><VerifyOtpPage /></PublicRoute> },
+    { path: '/forgot-password', element: <PublicRoute><ForgotPasswordPage /></PublicRoute> },
+    { path: '/reset-password/:token', element: <PublicRoute><ResetPasswordPage /></PublicRoute> },
+
+    // Protected invite routes (standalone full-screen)
     {
         path: '/invite/accept/:token',
-        element: (
-            <ProtectedRoute>
-                <AcceptInvitePage />
-            </ProtectedRoute>
-        ),
+        element: <ProtectedRoute><AcceptInvitePage /></ProtectedRoute>,
     },
     {
         path: '/invite/reject/:token',
-        element: (
-            <ProtectedRoute>
-                <RejectInvitePage />
-            </ProtectedRoute>
-        ),
+        element: <ProtectedRoute><RejectInvitePage /></ProtectedRoute>,
     },
 
     // Protected app routes
     {
-        element: (
-            <ProtectedRoute>
-                <AppLayout />
-            </ProtectedRoute>
-        ),
+        element: <ProtectedRoute><AppLayout /></ProtectedRoute>,
         children: [
-            { path: '/', element: <DashboardPage /> },
+            { path: '/dashboard', element: <DashboardPage /> },
             { path: '/groups', element: <GroupsPage /> },
             { path: '/groups/:groupId', element: <GroupDetailPage /> },
             { path: '/activity', element: <ActivityPage /> },
@@ -65,4 +76,3 @@ const router = createBrowserRouter([
 ]);
 
 export default router;
-
