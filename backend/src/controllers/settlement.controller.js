@@ -1,13 +1,15 @@
 import mongoose from "mongoose";
 import { Settlement } from "../models/settlement.model.js";
 import { GroupMember } from "../models/groupMember.model.js";
+import { Expense } from "../models/expense.model.js";
+import { ExpenseSplit } from "../models/expenseSplit.model.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import createNotification from "../services/notification.service.js";
 
 export const createSettlement = asyncHandler(async (req, res) => {
-    const { groupId, paidTo, amount, paymentMethod, referenceNote, proof } = req.body;
+    const { groupId, paidTo, amount, paymentMethod, referenceNote } = req.body;
     const paidFrom = req.user._id;
 
     if (!groupId || !paidTo || !amount) {
@@ -29,6 +31,44 @@ export const createSettlement = asyncHandler(async (req, res) => {
 
     if (members.length !== 2) {
         throw new ApiError(403, "Both users must be members of the group");
+    }
+
+    let netBalance = 0;
+    const groupExpenses = await Expense.find({ groupId });
+
+    for (const expense of groupExpenses) {
+        if (expense.paidBy.toString() === paidFrom.toString()) {
+            netBalance += expense.totalAmount;
+        }
+        const split = await ExpenseSplit.findOne({ expenseId: expense._id, userId: paidFrom });
+        if (split) {
+            netBalance -= split.finalAmount;
+        }
+    }
+
+    const groupSettlements = await Settlement.find({ groupId });
+    for (const settlement of groupSettlements) {
+        if (settlement.paidFrom.toString() === paidFrom.toString()) {
+            netBalance += settlement.amount;
+        }
+        if (settlement.paidTo.toString() === paidFrom.toString()) {
+            netBalance -= settlement.amount;
+        }
+    }
+
+    if (netBalance >= -0.01) {
+        throw new ApiError(400, "You do not have any outstanding debt in this group to settle");
+    }
+
+    const absoluteDebt = Math.abs(netBalance);
+    if (amount > absoluteDebt + 0.01) {
+        throw new ApiError(400, `Settlement amount (₹${amount}) cannot exceed your total debt (₹${absoluteDebt.toFixed(2)})`);
+    }
+
+    let proof = undefined;
+    if (req.file) {
+        const b64 = Buffer.from(req.file.buffer).toString("base64");
+        proof = `data:${req.file.mimetype};base64,${b64}`;
     }
 
     const settlement = await Settlement.create({
@@ -106,6 +146,20 @@ export const getMySettlements = asyncHandler(async (req, res) => {
             { settlements },
             "Your settlements fetched successfully"
         )
+    );
+});
+
+export const getSettlementById = asyncHandler(async (req, res) => {
+    const { settlementId } = req.params;
+
+    const settlement = await Settlement.findById(settlementId)
+        .populate("paidFrom", "username fullName avatar")
+        .populate("paidTo", "username fullName avatar");
+
+    if (!settlement) throw new ApiError(404, "Settlement not found");
+
+    res.status(200).json(
+        new ApiResponse(200, settlement, "Settlement fetched successfully")
     );
 });
 

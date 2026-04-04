@@ -7,171 +7,94 @@ import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
 
-export const getGroupBalances = asyncHandler(async (req, res) => {
-    const { groupId } = req.params;
-    const userId = req.user._id;
+const calculateOptimizedSettlements = (balanceMap) => {
+    const debtors = [];
+    const creditors = [];
 
-    if (!mongoose.Types.ObjectId.isValid(groupId)) {
-        throw new ApiError(400, "Invalid group id");
-    }
-
-    const isMember = await GroupMember.findOne({
-        group: groupId,
-        user: userId
+    Object.values(balanceMap).forEach(entry => {
+        const balance = Number(entry.balance.toFixed(2));
+        if (balance < -0.01) {
+            debtors.push({ user: entry.user, balance: Math.abs(balance) });
+        } else if (balance > 0.01) {
+            creditors.push({ user: entry.user, balance: balance });
+        }
     });
 
-    if (!isMember) {
-        throw new ApiError(403, "You are not a member of this group");
+    debtors.sort((a, b) => b.balance - a.balance);
+    creditors.sort((a, b) => b.balance - a.balance);
+
+    const transactions = [];
+    let i = 0;
+    let j = 0;
+
+    while (i < debtors.length && j < creditors.length) {
+        const debtor = debtors[i];
+        const creditor = creditors[j];
+        const amount = Math.min(debtor.balance, creditor.balance);
+        const settledAmount = Number(amount.toFixed(2));
+
+        transactions.push({
+            from: debtor.user,
+            to: creditor.user,
+            amount: settledAmount
+        });
+
+        debtor.balance -= settledAmount;
+        creditor.balance -= settledAmount;
+
+        if (debtor.balance < 0.01) i++;
+        if (creditor.balance < 0.01) j++;
     }
 
+    return transactions;
+};
+
+const buildGroupBalanceMap = async (groupId) => {
     const members = await GroupMember.find({ group: groupId }).populate(
         "user",
         "username fullname avatar"
     );
 
     const balanceMap = {};
-
     members.forEach(m => {
         if (m.user) {
-            balanceMap[m.user._id.toString()] = {
-                user: m.user,
-                balance: 0
-            };
+            balanceMap[m.user._id.toString()] = { user: m.user, balance: 0 };
         }
     });
 
     const expenses = await Expense.find({ groupId });
+    const expenseIds = expenses.map(e => e._id);
 
-    for (const expense of expenses) {
+    expenses.forEach(expense => {
         const payerId = expense.paidBy.toString();
-
         if (balanceMap[payerId]) {
             balanceMap[payerId].balance += expense.totalAmount;
         }
+    });
 
-        const splits = await ExpenseSplit.find({ expenseId: expense._id });
-
-        for (const split of splits) {
-            const uid = split.userId.toString();
-            if (balanceMap[uid]) {
-                balanceMap[uid].balance -= split.finalAmount;
-            }
+    const splits = await ExpenseSplit.find({ expenseId: { $in: expenseIds } });
+    splits.forEach(split => {
+        const uid = split.userId.toString();
+        if (balanceMap[uid]) {
+            balanceMap[uid].balance -= split.finalAmount;
         }
-    }
+    });
 
     const settlements = await Settlement.find({ groupId });
-
-    for (const settlement of settlements) {
+    settlements.forEach(settlement => {
         const fromId = settlement.paidFrom.toString();
         const toId = settlement.paidTo.toString();
 
-        if (balanceMap[fromId]) {
-            balanceMap[fromId].balance += settlement.amount;
-        }
-
-        if (balanceMap[toId]) {
-            balanceMap[toId].balance -= settlement.amount;
-        }
-    }
-
-    const myEntry = balanceMap[userId.toString()];
-
-    if (!myEntry) {
-        throw new ApiError(404, "Balance record not found for user");
-    }
-
-    const myBalance = myEntry.balance;
-
-    const youOwe = [];
-    const youGet = [];
-
-    Object.values(balanceMap).forEach(entry => {
-        if (entry.user._id.toString() === userId.toString()) return;
-
-        const amount = Number(entry.balance.toFixed(2));
-
-        if (amount > 0 && myBalance < 0) {
-            youOwe.push({
-                user: entry.user,
-                amount: Math.min(amount, Math.abs(myBalance))
-            });
-        }
-
-        if (amount < 0 && myBalance > 0) {
-            youGet.push({
-                user: entry.user,
-                amount: Math.min(Math.abs(amount), myBalance)
-            });
-        }
+        if (balanceMap[fromId]) balanceMap[fromId].balance += settlement.amount;
+        if (balanceMap[toId]) balanceMap[toId].balance -= settlement.amount;
     });
 
-    res.status(200).json(
-        new ApiResponse(
-            200,
-            {
-                netBalance: Number(myBalance.toFixed(2)),
-                youOwe,
-                youGet
-            },
-            "Group balance calculated successfully"
-        )
-    );
-});
+    return balanceMap;
+};
 
-export const getTotalUserNetBalance = asyncHandler(async (req, res) => {
-    const userId = req.user._id;
-
-    let netBalance = 0;
-
-    const groupMemberships = await GroupMember.find({ user: userId });
-
-    const groupIds = groupMemberships.map(g => g.group);
-
-    const expenses = await Expense.find({ groupId: { $in: groupIds } });
-
-    for (const expense of expenses) {
-        if (expense.paidBy.toString() === userId.toString()) {
-            netBalance += expense.totalAmount;
-        }
-
-        const split = await ExpenseSplit.findOne({
-            expenseId: expense._id,
-            userId
-        });
-
-        if (split) {
-            netBalance -= split.finalAmount;
-        }
-    }
-
-    const settlements = await Settlement.find({
-        $or: [
-            { paidFrom: userId },
-            { paidTo: userId }
-        ]
-    });
-
-    for (const settlement of settlements) {
-        if (settlement.paidFrom.toString() === userId.toString()) {
-            netBalance += settlement.amount;
-        }
-        if (settlement.paidTo.toString() === userId.toString()) {
-            netBalance -= settlement.amount;
-        }
-    }
-
-    res.status(200).json(
-        new ApiResponse(
-            200,
-            { netBalance: Number(netBalance.toFixed(2)) },
-            "Total net balance calculated successfully"
-        )
-    );
-});
-
-export const getMyNetGroupBalance = asyncHandler(async (req, res) => {
+export const getGroupBalances = asyncHandler(async (req, res) => {
     const { groupId } = req.params;
-    const userId = req.user._id;
+    const userId = req.user._id.toString();
 
     if (!mongoose.Types.ObjectId.isValid(groupId)) {
         throw new ApiError(400, "Invalid group id");
@@ -182,97 +105,57 @@ export const getMyNetGroupBalance = asyncHandler(async (req, res) => {
         throw new ApiError(403, "You are not a member of this group");
     }
 
-    let myBalance = 0;
+    const balanceMap = await buildGroupBalanceMap(groupId);
 
-    const expenses = await Expense.find({ groupId });
-
-    for (const expense of expenses) {
-        if (expense.paidBy.toString() === userId.toString()) {
-            myBalance += expense.totalAmount;
-        }
-
-        const split = await ExpenseSplit.findOne({
-            expenseId: expense._id,
-            userId
-        });
-
-        if (split) {
-            myBalance -= split.finalAmount;
-        }
+    const myEntry = balanceMap[userId];
+    if (!myEntry) {
+        throw new ApiError(404, "Balance record not found for user");
     }
+    const myNetBalance = Number(myEntry.balance.toFixed(2));
 
-    const settlements = await Settlement.find({ groupId });
+    const optimizedTransactions = calculateOptimizedSettlements(balanceMap);
 
-    for (const settlement of settlements) {
-        if (settlement.paidFrom.toString() === userId.toString()) {
-            myBalance += settlement.amount;
-        }
-        if (settlement.paidTo.toString() === userId.toString()) {
-            myBalance -= settlement.amount;
-        }
-    }
+    const youOwe = optimizedTransactions
+        .filter(t => t.from._id.toString() === userId)
+        .map(t => ({ user: t.to, amount: t.amount }));
 
-    const members = await GroupMember.find({ group: groupId }).populate(
-        "user",
-        "username fullname avatar"
+    const youGet = optimizedTransactions
+        .filter(t => t.to._id.toString() === userId)
+        .map(t => ({ user: t.from, amount: t.amount }));
+
+    res.status(200).json(
+        new ApiResponse(200, { netBalance: myNetBalance, youOwe, youGet }, "Group balance calculated successfully")
     );
+});
 
-    const youOwe = [];
-    const youGet = [];
+export const getTotalUserNetBalance = asyncHandler(async (req, res) => {
+    const userId = req.user._id.toString();
+    let totalOwed = 0;
+    let totalOwedToYou = 0;
 
-    for (const member of members) {
-        if (member.user._id.toString() === userId.toString()) continue;
+    const groupMemberships = await GroupMember.find({ user: userId });
+    const groupIds = groupMemberships.map(g => g.group);
 
-        let otherBalance = 0;
+    for (const groupId of groupIds) {
+        const balanceMap = await buildGroupBalanceMap(groupId);
+        const optimizedTransactions = calculateOptimizedSettlements(balanceMap);
 
-        for (const expense of expenses) {
-            if (expense.paidBy.toString() === member.user._id.toString()) {
-                otherBalance += expense.totalAmount;
+        optimizedTransactions.forEach(t => {
+            if (t.from._id.toString() === userId) {
+                totalOwed += t.amount;
             }
-
-            const split = await ExpenseSplit.findOne({
-                expenseId: expense._id,
-                userId: member.user._id
-            });
-
-            if (split) {
-                otherBalance -= split.finalAmount;
+            if (t.to._id.toString() === userId) {
+                totalOwedToYou += t.amount;
             }
-        }
-
-        for (const settlement of settlements) {
-            if (settlement.paidFrom.toString() === member.user._id.toString()) {
-                otherBalance += settlement.amount;
-            }
-            if (settlement.paidTo.toString() === member.user._id.toString()) {
-                otherBalance -= settlement.amount;
-            }
-        }
-
-        if (myBalance < 0 && otherBalance > 0) {
-            youOwe.push({
-                user: member.user,
-                amount: Math.min(otherBalance, Math.abs(myBalance))
-            });
-        }
-
-        if (myBalance > 0 && otherBalance < 0) {
-            youGet.push({
-                user: member.user,
-                amount: Math.min(myBalance, Math.abs(otherBalance))
-            });
-        }
+        });
     }
 
     res.status(200).json(
-        new ApiResponse(
-            200,
-            {
-                netBalance: Number(myBalance.toFixed(2)),
-                youOwe,
-                youGet
-            },
-            "Group net balance calculated successfully"
-        )
+        new ApiResponse(200, {
+            totalOwed: Number(totalOwed.toFixed(2)),
+            totalOwedToYou: Number(totalOwedToYou.toFixed(2))
+        }, "Total balances calculated successfully")
     );
 });
+
+export const getMyNetGroupBalance = getGroupBalances;

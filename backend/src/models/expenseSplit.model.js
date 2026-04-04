@@ -30,7 +30,6 @@ const expenseSplitSchema = new Schema(
     }
 );
 
-// Compound unique index
-//expenseSplitSchema.index({ expenseId: 1, userId: 1 }, { unique: true });
+expenseSplitSchema.index({ expenseId: 1, userId: 1 }, { unique: true });
 
 export const ExpenseSplit = mongoose.model("ExpenseSplit", expenseSplitSchema);

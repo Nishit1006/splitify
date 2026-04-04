@@ -19,7 +19,7 @@ const groupSchema = new Schema(
             index: true
         },
         groupImage: {
-            type: String, // cloudinary url
+            type: String,
         }
     },
     {

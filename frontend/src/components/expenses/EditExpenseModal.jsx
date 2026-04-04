@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Plus } from 'lucide-react';
+import { Save } from 'lucide-react';
 import Modal from '../../components/ui/Modal';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import Button from '../../components/ui/Button';
 import Avatar from '../../components/ui/Avatar';
 import api from '../../lib/api';
-import { useAuth } from '../../contexts/AuthContext';
 
 const splitOptions = [
     { value: 'EQUAL', label: 'Equal Split' },
@@ -16,8 +15,7 @@ const splitOptions = [
     { value: 'SHARES', label: 'Shares' },
 ];
 
-export default function AddExpenseModal({ open, onClose, groupId, members = [], onAdded }) {
-    const { user } = useAuth();
+export default function EditExpenseModal({ open, onClose, expense, members = [], onUpdated }) {
     const [form, setForm] = useState({
         title: '',
         description: '',
@@ -31,20 +29,36 @@ export default function AddExpenseModal({ open, onClose, groupId, members = [], 
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        if (open) {
-            setForm(prev => ({ ...prev, paidBy: user?._id || '' }));
+        if (open && expense) {
+            setForm({
+                title: expense.title || '',
+                description: expense.description || '',
+                totalAmount: expense.totalAmount || '',
+                splitType: expense.splitType || 'EQUAL',
+                paidBy: expense.paidBy?._id || expense.paidBy || ''
+            });
             setReceipt(null);
-            if (members.length > 0) {
-                const memberIds = members.map((m) => m.user?._id || m._id);
-                setSelectedMembers(memberIds);
-                const inputs = {};
-                memberIds.forEach((id) => {
-                    inputs[id] = '';
-                });
-                setSplitInputs(inputs);
-            }
+
+            const fetchSplits = async () => {
+                try {
+                    const { data } = await api.get(`/expenses/${expense._id}`);
+                    const splits = data.data.splits || [];
+                    const memberIds = splits.map((s) => s.userId._id || s.userId);
+                    setSelectedMembers(memberIds);
+
+                    const inputs = {};
+                    splits.forEach((s) => {
+                        const id = s.userId._id || s.userId;
+                        inputs[id] = s.splitValue;
+                    });
+                    setSplitInputs(inputs);
+                } catch (err) {
+                    toast.error('Failed to load expense splits');
+                }
+            };
+            fetchSplits();
         }
-    }, [members, open, user]);
+    }, [open, expense]);
 
     const toggleMember = (id) => {
         setSelectedMembers((prev) =>
@@ -121,7 +135,6 @@ export default function AddExpenseModal({ open, onClose, groupId, members = [], 
         setLoading(true);
         try {
             const formData = new FormData();
-            formData.append('groupId', groupId);
             formData.append('title', form.title);
             formData.append('description', form.description);
             formData.append('totalAmount', total);
@@ -134,29 +147,28 @@ export default function AddExpenseModal({ open, onClose, groupId, members = [], 
                 formData.append('receipt', receipt);
             }
 
-            const { data } = await api.post('/expenses', formData, {
+            await api.put(`/expenses/${expense._id}`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            toast.success('Expense added!');
-            onAdded?.(data.data?.expense);
+            toast.success('Expense updated!');
+            onUpdated?.();
             onClose();
         } catch (err) {
-            toast.error(err.response?.data?.message || 'Failed to add expense');
+            toast.error(err.response?.data?.message || 'Failed to update expense');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <Modal open={open} onClose={onClose} title="Add Expense" size="md">
+        <Modal open={open} onClose={onClose} title="Edit Expense" size="md">
             <form onSubmit={handleSubmit} className="space-y-4">
                 <Input
                     label="Title"
                     placeholder="e.g., Dinner at Pizza Hut"
                     value={form.title}
                     onChange={(e) => setForm({ ...form, title: e.target.value })}
-                    autoFocus
                 />
 
                 <Input
@@ -184,7 +196,7 @@ export default function AddExpenseModal({ open, onClose, groupId, members = [], 
                 />
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Receipt Image (optional)</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Update Receipt Image (optional)</label>
                     <input
                         type="file"
                         accept="image/*"
@@ -253,7 +265,7 @@ export default function AddExpenseModal({ open, onClose, groupId, members = [], 
                         Cancel
                     </Button>
                     <Button type="submit" loading={loading}>
-                        <Plus className="w-4 h-4" /> Add Expense
+                        <Save className="w-4 h-4" /> Save Changes
                     </Button>
                 </div>
             </form>

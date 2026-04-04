@@ -1,18 +1,21 @@
-import express from "express";
+import { Router } from "express";
 import {
     createSettlement,
     getGroupSettlements,
     getMySettlements,
-    deleteSettlement
+    deleteSettlement,
+    getSettlementById
 } from "../controllers/settlement.controller.js";
-import protect from "../middlewares/auth.middleware.js";
+import verifyJWT from "../middlewares/auth.middleware.js";
+import { upload } from "../middlewares/multer.middleware.js";
 
-const router = express.Router();
+const router = Router();
 
-router.use(protect);
+router.use(verifyJWT);
 
-router.post("/", createSettlement);
+router.post("/", upload.single("proof"), createSettlement);
 router.get("/group/:groupId", getGroupSettlements);
+router.get("/:settlementId", getSettlementById);
 router.get("/my", getMySettlements);
 router.delete("/:settlementId", deleteSettlement);
 

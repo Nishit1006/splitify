@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, CheckCheck } from 'lucide-react';
+import { Bell, CheckCheck, Eye } from 'lucide-react';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
@@ -8,10 +8,25 @@ import EmptyState from '../components/ui/EmptyState';
 import { formatDate } from '../lib/utils';
 import { toast } from 'sonner';
 import api from '../lib/api';
+import ViewSettlementModal from '../components/settlements/ViewSettlementModal';
 
 export default function ActivityPage() {
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedSettle, setSelectedSettle] = useState(null);
+    const [isViewOpen, setIsViewOpen] = useState(false);
+
+    const handleViewSettlement = async (notif) => {
+        if (!notif.isRead) markOneRead(notif._id);
+
+        try {
+            const { data } = await api.get(`/settlements/${notif.relatedId}`);
+            setSelectedSettle(data.data);
+            setIsViewOpen(true);
+        } catch (err) {
+            toast.error("Could not load settlement details. It may have been deleted.");
+        }
+    };
 
     const fetchNotifications = async () => {
         try {
@@ -46,6 +61,28 @@ export default function ActivityPage() {
             );
         } catch {
             // ignore
+        }
+    };
+
+    const handleAcceptInvite = async (inviteId, notifId) => {
+        try {
+            await api.post(`/invitations/accept/${inviteId}`);
+            toast.success('Successfully joined the group!');
+            markOneRead(notifId);
+            fetchNotifications();
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Failed to accept invite');
+        }
+    };
+
+    const handleRejectInvite = async (inviteId, notifId) => {
+        try {
+            await api.post(`/invitations/reject/${inviteId}`);
+            toast.success('Invitation rejected');
+            markOneRead(notifId);
+            fetchNotifications();
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Failed to reject invite');
         }
     };
 
@@ -111,7 +148,33 @@ export default function ActivityPage() {
                                 />
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm text-gray-700 dark:text-gray-300">{notif.message}</p>
-                                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+
+                                    {/* Action Buttons for Invites */}
+                                    {notif.type === 'group_invite' && !notif.isRead && (
+                                        <div className="flex items-center gap-2 mt-3">
+                                            <Button
+                                                size="sm"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleAcceptInvite(notif.relatedId, notif._id);
+                                                }}
+                                            >
+                                                Accept
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="danger"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleRejectInvite(notif.relatedId, notif._id);
+                                                }}
+                                            >
+                                                Reject
+                                            </Button>
+                                        </div>
+                                    )}
+
+                                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
                                         {formatDate(notif.createdAt)}
                                     </p>
                                 </div>
@@ -125,6 +188,11 @@ export default function ActivityPage() {
                     )}
                 </div>
             </Card>
+            <ViewSettlementModal
+                open={isViewOpen}
+                onClose={() => setIsViewOpen(false)}
+                settlement={selectedSettle}
+            />
         </div>
     );
 }

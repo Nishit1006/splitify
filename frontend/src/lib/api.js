@@ -1,28 +1,37 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: '/api/v1',
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',
     withCredentials: true,
-    headers: { 'Content-Type': 'application/json' },
 });
 
-// Response interceptor — redirect on 401
 api.interceptors.response.use(
-    (res) => res,
-    (error) => {
-        if (error.response?.status === 401) {
-            const skipRedirect = [
-                '/users/login',
-                '/users/register',
-                '/users/verify-email-otp',
-                '/users/me',
-                '/invitations/accept',
-                '/invitations/reject',
-            ].some((path) => error.config.url?.includes(path));
-            if (!skipRedirect) {
-                window.location.href = '/login';
+    (response) => response,
+    async (error) => {
+        const originalRequest = error.config;
+
+        // Make sure we don't try to refresh if the refresh itself failed, or if it's a login attempt
+        if (
+            error.response?.status === 401 &&
+            !originalRequest._retry &&
+            originalRequest.url !== '/users/login' &&
+            originalRequest.url !== '/users/refresh-token'
+        ) {
+            originalRequest._retry = true;
+
+            try {
+                await axios.post(
+                    `${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}/users/refresh-token`,
+                    {},
+                    { withCredentials: true }
+                );
+
+                return api(originalRequest);
+            } catch (refreshError) {
+                return Promise.reject(refreshError);
             }
         }
+
         return Promise.reject(error);
     }
 );

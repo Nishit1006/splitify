@@ -1,26 +1,13 @@
-import express from "express";
-import {
-    inviteMemberByUsername,
-    acceptInvitation,
-    rejectInvitation
-} from "../controllers/invitation.controller.js";
+import { Router } from "express";
+import { sendInvite, acceptInvite, rejectInvite } from "../controllers/invitation.controller.js";
 import verifyJWT from "../middlewares/auth.middleware.js";
 
-const router = express.Router();
+const router = Router();
 
-router.post("/invite", verifyJWT, inviteMemberByUsername);
-router.get(
-    "/accept/:token",
-    (req, res, next) => {
-        console.log("🔥 ACCEPT ROUTE HIT");
-        next();
-    },
-    verifyJWT,
-    acceptInvitation
+router.use(verifyJWT);
 
-);
-
-router.post("/reject/:token", verifyJWT, rejectInvitation);
-
+router.post("/send", sendInvite);
+router.post("/accept/:inviteId", acceptInvite);
+router.post("/reject/:inviteId", rejectInvite);
 
 export default router;

@@ -56,6 +56,31 @@ export const SPLIT_TYPE_LABELS = {
     SHARES: 'Shares',
 };
 
+/** Format date with time */
+export function formatDateTime(dateStr) {
+    const date = new Date(dateStr);
+    const now = new Date();
+
+    const timeStr = date.toLocaleTimeString('en-IN', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+    });
+
+    const dateOpts = {
+        day: 'numeric',
+        month: 'short',
+    };
+
+    if (date.getFullYear() !== now.getFullYear()) {
+        dateOpts.year = 'numeric';
+    }
+
+    const dateFormatted = date.toLocaleDateString('en-IN', dateOpts);
+
+    return `${dateFormatted}, ${timeStr}`;
+}
+
 /** Payment method labels */
 export const PAYMENT_METHOD_LABELS = {
     cash: 'Cash',

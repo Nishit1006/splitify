@@ -40,7 +40,7 @@ const expenseSchema = new Schema(
             required: true
         },
         receipt: {
-            type: String, // cloudinary url
+            type: String,
         }
     },
     {

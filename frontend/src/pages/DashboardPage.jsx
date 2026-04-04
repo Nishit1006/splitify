@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import {
     Wallet,
     TrendingDown,
@@ -9,6 +10,7 @@ import {
     Users,
     Receipt,
     Bell,
+    AlertCircle
 } from 'lucide-react';
 import Card, { CardContent } from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -19,37 +21,68 @@ import { formatCurrency, formatDate } from '../lib/utils';
 import api from '../lib/api';
 
 export default function DashboardPage() {
-    const [balance, setBalance] = useState(null);
+    const [balance, setBalance] = useState({ totalOwed: 0, totalOwedToYou: 0 });
     const [notifications, setNotifications] = useState([]);
     const [groups, setGroups] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [balanceError, setBalanceError] = useState(false);
+
+    const fetchDashboard = async () => {
+        try {
+            const [balRes, notifRes, groupRes] = await Promise.allSettled([
+                api.get('/balances/user/net'),
+                api.get('/notifications?limit=5'),
+                api.get('/groups/my'),
+            ]);
+
+            if (balRes.status === 'fulfilled') {
+                setBalance(balRes.value.data.data);
+                setBalanceError(false);
+            } else {
+                setBalanceError(true);
+            }
+
+            if (notifRes.status === 'fulfilled') {
+                setNotifications(notifRes.value.data.data || []);
+            }
+
+            if (groupRes.status === 'fulfilled') {
+                // FIXED: Added the missing .data!
+                setGroups(groupRes.value.data.data?.groups || []);
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchDashboard = async () => {
-            try {
-                const [balRes, notifRes, groupRes] = await Promise.allSettled([
-                    api.get('/balances/user/net'),
-                    api.get('/notifications?limit=5'),
-                    api.get('/groups/my'),
-                ]);
-
-                if (balRes.status === 'fulfilled') setBalance(balRes.value.data.data);
-                if (notifRes.status === 'fulfilled') setNotifications(notifRes.value.data.data || []);
-                if (groupRes.status === 'fulfilled') setGroups(groupRes.value.data.groups || []);
-            } catch {
-                // individual failures handled by allSettled
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchDashboard();
     }, []);
 
-    const netBalance = balance?.netBalance ?? 0;
+    const handleAcceptInvite = async (inviteId) => {
+        try {
+            await api.post(`/invitations/accept/${inviteId}`);
+            toast.success('Successfully joined the group!');
+            fetchDashboard();
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Failed to accept invite');
+        }
+    };
+
+    const handleRejectInvite = async (inviteId) => {
+        try {
+            await api.post(`/invitations/reject/${inviteId}`);
+            toast.success('Invitation rejected');
+            fetchDashboard();
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Failed to reject invite');
+        }
+    };
+
+    const netDifference = balance.totalOwedToYou - balance.totalOwed;
 
     return (
         <div className="space-y-6">
-            {/* Page header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
@@ -66,61 +99,66 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            {/* Summary Cards */}
             {loading ? (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     {[1, 2, 3].map((i) => (
                         <Skeleton key={i} className="h-32 rounded-2xl" />
                     ))}
                 </div>
+            ) : balanceError ? (
+                <Card className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
+                    <CardContent className="py-6 text-center">
+                        <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
+                        <h3 className="font-semibold text-red-700 dark:text-red-400">Failed to load balances</h3>
+                        <p className="text-sm text-red-600 dark:text-red-300 mt-1">Please refresh the page to try again.</p>
+                    </CardContent>
+                </Card>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    {/* Total Balance */}
                     <Card className="relative overflow-hidden">
                         <CardContent className="py-5">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Balance</p>
+                                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Net Difference</p>
                                     <p
-                                        className={`text-2xl font-bold mt-1 ${netBalance >= 0
-                                                ? 'text-emerald-600 dark:text-emerald-400'
-                                                : 'text-red-600 dark:text-red-400'
+                                        className={`text-2xl font-bold mt-1 ${netDifference >= 0
+                                            ? 'text-emerald-600 dark:text-emerald-400'
+                                            : 'text-red-600 dark:text-red-400'
                                             }`}
                                     >
-                                        {formatCurrency(netBalance)}
+                                        {formatCurrency(netDifference)}
                                     </p>
                                 </div>
                                 <div
-                                    className={`w-12 h-12 rounded-xl flex items-center justify-center ${netBalance >= 0
-                                            ? 'bg-emerald-100 dark:bg-emerald-900/30'
-                                            : 'bg-red-100 dark:bg-red-900/30'
+                                    className={`w-12 h-12 rounded-xl flex items-center justify-center ${netDifference >= 0
+                                        ? 'bg-emerald-100 dark:bg-emerald-900/30'
+                                        : 'bg-red-100 dark:bg-red-900/30'
                                         }`}
                                 >
                                     <Wallet
-                                        className={`w-6 h-6 ${netBalance >= 0
-                                                ? 'text-emerald-600 dark:text-emerald-400'
-                                                : 'text-red-600 dark:text-red-400'
+                                        className={`w-6 h-6 ${netDifference >= 0
+                                            ? 'text-emerald-600 dark:text-emerald-400'
+                                            : 'text-red-600 dark:text-red-400'
                                             }`}
                                     />
                                 </div>
                             </div>
                         </CardContent>
                         <div
-                            className={`absolute bottom-0 left-0 right-0 h-1 ${netBalance >= 0
-                                    ? 'bg-gradient-to-r from-emerald-400 to-emerald-500'
-                                    : 'bg-gradient-to-r from-red-400 to-red-500'
+                            className={`absolute bottom-0 left-0 right-0 h-1 ${netDifference >= 0
+                                ? 'bg-gradient-to-r from-emerald-400 to-emerald-500'
+                                : 'bg-gradient-to-r from-red-400 to-red-500'
                                 }`}
                         />
                     </Card>
 
-                    {/* You Owe */}
                     <Card className="relative overflow-hidden">
                         <CardContent className="py-5">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">You Owe</p>
+                                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total You Owe</p>
                                     <p className="text-2xl font-bold mt-1 text-red-600 dark:text-red-400">
-                                        {formatCurrency(netBalance < 0 ? Math.abs(netBalance) : 0)}
+                                        {formatCurrency(balance.totalOwed)}
                                     </p>
                                 </div>
                                 <div className="w-12 h-12 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
@@ -131,14 +169,13 @@ export default function DashboardPage() {
                         <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-red-400 to-red-500" />
                     </Card>
 
-                    {/* You Are Owed */}
                     <Card className="relative overflow-hidden">
                         <CardContent className="py-5">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">You Are Owed</p>
+                                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total You Are Owed</p>
                                     <p className="text-2xl font-bold mt-1 text-emerald-600 dark:text-emerald-400">
-                                        {formatCurrency(netBalance > 0 ? netBalance : 0)}
+                                        {formatCurrency(balance.totalOwedToYou)}
                                     </p>
                                 </div>
                                 <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
@@ -151,9 +188,7 @@ export default function DashboardPage() {
                 </div>
             )}
 
-            {/* Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Recent Activity */}
                 <div className="lg:col-span-2">
                     <Card>
                         <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
@@ -195,7 +230,26 @@ export default function DashboardPage() {
                                         />
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm text-gray-700 dark:text-gray-300">{notif.message}</p>
-                                            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+
+                                            {notif.type === 'group_invite' && !notif.isRead && (
+                                                <div className="flex items-center gap-2 mt-3">
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={() => handleAcceptInvite(notif.relatedId)}
+                                                    >
+                                                        Accept
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="danger"
+                                                        onClick={() => handleRejectInvite(notif.relatedId)}
+                                                    >
+                                                        Reject
+                                                    </Button>
+                                                </div>
+                                            )}
+
+                                            <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
                                                 {formatDate(notif.createdAt)}
                                             </p>
                                         </div>
@@ -221,7 +275,6 @@ export default function DashboardPage() {
                     </Card>
                 </div>
 
-                {/* My Groups Quick View */}
                 <div>
                     <Card>
                         <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">

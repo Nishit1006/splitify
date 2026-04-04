@@ -1,165 +1,134 @@
-// import { Group } from "../models/group.model.js";
-// import { GroupMember } from "../models/groupMember.model.js";
-
-// export const createGroup = async (req, res) => {
-//     try {
-//         const { name, description } = req.body;
-
-//         if (!name) {
-//             return res.status(400).json({ message: "Group name is required" });
-//         }
-
-//         const group = await Group.create({
-//             name,
-//             description,
-//             createdBy: req.user._id
-//         });
-
-//         await GroupMember.create({
-//             group: group._id,
-//             user: req.user._id,
-//             role: "ADMIN"
-//         });
-
-//         return res.status(201).json({
-//             message: "Group created successfully",
-//             group
-//         });
-//     } catch (error) {
-//         return res.status(500).json({ message: error.message });
-//     }
-// };
-
-// export const getMyGroups = async (req, res) => {
-//     const memberships = await GroupMember.find({
-//         user: req.user._id
-//     }).populate("group");
-
-//     const groups = memberships.map(m => m.group);
-
-//     res.status(200).json({
-//         message: "Groups fetched successfully",
-//         groups
-//     });
-// };
-
+import mongoose from "mongoose";
 import { Group } from "../models/group.model.js";
 import { GroupMember } from "../models/groupMember.model.js";
 import { Expense } from "../models/expense.model.js";
 import { ExpenseSplit } from "../models/expenseSplit.model.js";
 import { Settlement } from "../models/settlement.model.js";
+import { Notification } from "../models/notification.model.js";
+import { Invitation } from "../models/invitation.model.js";
+import ApiError from "../utils/ApiError.js";
+import ApiResponse from "../utils/ApiResponse.js";
+import asyncHandler from "../utils/asyncHandler.js";
 
-export const createGroup = async (req, res) => {
-    try {
-        const { name, description } = req.body;
+export const createGroup = asyncHandler(async (req, res) => {
+    const { name, description } = req.body;
 
-        if (!name) {
-            return res.status(400).json({ message: "Group name is required" });
-        }
-
-        const group = await Group.create({
-            name,
-            description,
-            createdBy: req.user._id
-        });
-
-        await GroupMember.create({
-            group: group._id,
-            user: req.user._id,
-            role: "ADMIN"
-        });
-
-        return res.status(201).json({
-            message: "Group created successfully",
-            group
-        });
-    } catch (error) {
-        return res.status(500).json({ message: error.message });
+    if (!name) {
+        throw new ApiError(400, "Group name is required");
     }
-};
 
-export const getMyGroups = async (req, res) => {
-    try {
-        const memberships = await GroupMember.find({
-            user: req.user._id
-        }).populate("group");
-
-        const groups = memberships.map(m => m.group);
-
-        res.status(200).json({
-            message: "Groups fetched successfully",
-            groups
-        });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
+    let groupImage = undefined;
+    if (req.file) {
+        const b64 = Buffer.from(req.file.buffer).toString("base64");
+        groupImage = `data:${req.file.mimetype};base64,${b64}`;
     }
-};
 
-export const getGroupMembers = async (req, res) => {
-    try {
-        const { groupId } = req.params;
+    const group = await Group.create({
+        name,
+        description,
+        createdBy: req.user._id,
+        groupImage
+    });
 
-        const members = await GroupMember.find({ group: groupId })
-            .populate("user", "username fullName avatar _id");
+    await GroupMember.create({
+        group: group._id,
+        user: req.user._id,
+        role: "ADMIN"
+    });
 
-        const group = await Group.findById(groupId);
+    return res.status(201).json(
+        new ApiResponse(201, { group }, "Group created successfully")
+    );
+});
 
-        return res.status(200).json({
-            message: "Members fetched successfully",
-            data: {
-                group,
-                members: members.map(m => ({
-                    _id: m._id,
-                    user: m.user,
-                    role: m.role,
-                }))
-            }
-        });
-    } catch (error) {
-        return res.status(500).json({ message: error.message });
+export const getMyGroups = asyncHandler(async (req, res) => {
+    const memberships = await GroupMember.find({
+        user: req.user._id
+    }).populate("group");
+
+    const groups = memberships
+        .map(m => m.group)
+        .filter(Boolean);
+
+    res.status(200).json(
+        new ApiResponse(200, { groups }, "Groups fetched successfully")
+    );
+});
+
+export const getGroupMembers = asyncHandler(async (req, res) => {
+    const { groupId } = req.params;
+
+    const members = await GroupMember.find({ group: groupId })
+        .populate("user", "username fullName avatar _id");
+
+    const group = await Group.findById(groupId);
+
+    if (!group) {
+        throw new ApiError(404, "Group not found");
     }
-};
 
-export const deleteGroup = async (req, res) => {
+    return res.status(200).json(
+        new ApiResponse(200, {
+            group,
+            members: members.map(m => ({
+                _id: m._id,
+                user: m.user,
+                role: m.role,
+            }))
+        }, "Members fetched successfully")
+    );
+});
+
+export const deleteGroup = asyncHandler(async (req, res) => {
+    const { groupId } = req.params;
+
+    const group = await Group.findById(groupId);
+    if (!group) {
+        throw new ApiError(404, "Group not found");
+    }
+
+    if (group.createdBy.toString() !== req.user._id.toString()) {
+        throw new ApiError(403, "Only the group creator can delete this group");
+    }
+
+    const expenses = await Expense.find({ groupId });
+    const expenseIds = expenses.map(e => e._id);
+
+    const settlements = await Settlement.find({ groupId });
+    const settlementIds = settlements.map(s => s._id);
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
-        const { groupId } = req.params;
-
-        // Check group exists
-        const group = await Group.findById(groupId);
-        if (!group) {
-            return res.status(404).json({ message: "Group not found" });
-        }
-
-        // Only the group creator can delete it
-        if (group.createdBy.toString() !== req.user._id.toString()) {
-            return res.status(403).json({ message: "Only the group creator can delete this group" });
-        }
-
-        // Get all expenses in the group
-        const expenses = await Expense.find({ groupId });
-        const expenseIds = expenses.map(e => e._id);
-
-        // Delete all expense splits for this group's expenses
         if (expenseIds.length > 0) {
-            await ExpenseSplit.deleteMany({ expenseId: { $in: expenseIds } });
+            await ExpenseSplit.deleteMany({ expenseId: { $in: expenseIds } }).session(session);
         }
 
-        // Delete all expenses
-        await Expense.deleteMany({ groupId });
+        await Expense.deleteMany({ groupId }).session(session);
+        await Settlement.deleteMany({ groupId }).session(session);
+        await GroupMember.deleteMany({ group: groupId }).session(session);
+        await Invitation.deleteMany({ groupId }).session(session);
 
-        // Delete all settlements
-        await Settlement.deleteMany({ groupId });
+        await Notification.deleteMany({
+            $or: [
+                { relatedId: groupId, relatedModel: "Group" },
+                { relatedId: { $in: expenseIds }, relatedModel: "Expense" },
+                { relatedId: { $in: settlementIds }, relatedModel: "Settlement" }
+            ]
+        }).session(session);
 
-        // Delete all group members
-        await GroupMember.deleteMany({ group: groupId });
+        await Group.findByIdAndDelete(groupId).session(session);
 
-        // Finally delete the group
-        await Group.findByIdAndDelete(groupId);
+        await session.commitTransaction();
+        session.endSession();
 
-        return res.status(200).json({
-            message: "Group deleted successfully"
-        });
+        return res.status(200).json(
+            new ApiResponse(200, {}, "Group deleted successfully")
+        );
     } catch (error) {
-        return res.status(500).json({ message: error.message });
+        await session.abortTransaction();
+        session.endSession();
+        throw new ApiError(500, "Failed to delete group safely. Changes rolled back.");
     }
-};
+});

@@ -1,5 +1,3 @@
-
-
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
@@ -13,6 +11,7 @@ import Skeleton from '../../components/ui/Skeleton';
 import EmptyState from '../../components/ui/EmptyState';
 import ExpenseCard from '../../components/expenses/ExpenseCard';
 import AddExpenseModal from '../../components/expenses/AddExpenseModal';
+import EditExpenseModal from '../../components/expenses/EditExpenseModal';
 import BalanceSummary from '../../components/balances/BalanceSummary';
 import SettleUpModal from '../../components/settlements/SettleUpModal';
 import SettlementCard from '../../components/settlements/SettlementCard';
@@ -37,7 +36,6 @@ export default function GroupDetailPage() {
     const [activeTab, setActiveTab] = useState('expenses');
     const [loading, setLoading] = useState(true);
 
-    // Data
     const [expenses, setExpenses] = useState([]);
     const [members, setMembers] = useState([]);
     const [balanceData, setBalanceData] = useState(null);
@@ -45,15 +43,14 @@ export default function GroupDetailPage() {
     const [groupName, setGroupName] = useState('');
     const [groupData, setGroupData] = useState(null);
 
-    // Modals
     const [showAddExpense, setShowAddExpense] = useState(false);
+    const [editingExpense, setEditingExpense] = useState(null);
     const [showInvite, setShowInvite] = useState(false);
     const [settleTarget, setSettleTarget] = useState(null);
     const [showRemoveModal, setShowRemoveModal] = useState(false);
     const [selectedMember, setSelectedMember] = useState(null);
     const [removing, setRemoving] = useState(false);
 
-    // Leave group
     const [showLeaveModal, setShowLeaveModal] = useState(false);
     const [leaving, setLeaving] = useState(false);
 
@@ -82,8 +79,6 @@ export default function GroupDetailPage() {
                 if (data?.group?.name) setGroupName(data.group.name);
                 if (data?.group) setGroupData(data.group);
             }
-        } catch {
-            // ignore
         } finally {
             setLoading(false);
         }
@@ -93,7 +88,6 @@ export default function GroupDetailPage() {
         fetchData();
     }, [groupId]);
 
-    // Derived — is current user the group creator/admin
     const currentMember = members.find((m) => m.user?._id === user?._id);
     const isAdmin = currentMember?.role === 'ADMIN';
     const isCreator =
@@ -121,7 +115,7 @@ export default function GroupDetailPage() {
         }
     };
 
-    const handleExpenseAdded = () => {
+    const handleExpenseAddedOrUpdated = () => {
         fetchData();
     };
 
@@ -138,7 +132,6 @@ export default function GroupDetailPage() {
         }
     };
 
-    // ── Leave Group ──
     const handleLeaveGroup = async () => {
         setLeaving(true);
         try {
@@ -153,7 +146,6 @@ export default function GroupDetailPage() {
                 toast.success('You have left the group');
             }
 
-            // Either way navigate back to groups list
             navigate('/groups');
         } catch (err) {
             toast.error(err.response?.data?.message || 'Failed to leave group');
@@ -163,7 +155,6 @@ export default function GroupDetailPage() {
         }
     };
 
-    // Dynamic leave modal message based on role and member count
     const getLeaveMessage = () => {
         const otherMembersCount = members.filter((m) => m.user?._id !== user?._id).length;
 
@@ -194,7 +185,6 @@ export default function GroupDetailPage() {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-center gap-3">
                     <Link
@@ -210,7 +200,6 @@ export default function GroupDetailPage() {
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    {/* Leave Group button — always visible to all members */}
                     <Button
                         variant="ghost"
                         size="sm"
@@ -229,7 +218,6 @@ export default function GroupDetailPage() {
                 </div>
             </div>
 
-            {/* Tabs */}
             <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl overflow-x-auto">
                 {TABS.map((tab) => (
                     <button
@@ -249,7 +237,6 @@ export default function GroupDetailPage() {
                 ))}
             </div>
 
-            {/* Tab Content */}
             {loading ? (
                 <div className="space-y-3">
                     {[1, 2, 3].map((i) => (
@@ -258,7 +245,6 @@ export default function GroupDetailPage() {
                 </div>
             ) : (
                 <>
-                    {/* Expenses Tab */}
                     {activeTab === 'expenses' && (
                         <div className="space-y-3">
                             {expenses.length === 0 ? (
@@ -279,21 +265,20 @@ export default function GroupDetailPage() {
                                         expense={exp}
                                         currentUserId={user?._id}
                                         onDeleted={handleDeleteExpense}
+                                        onEdit={(e) => setEditingExpense(e)}
                                     />
                                 ))
                             )}
                         </div>
                     )}
 
-                    {/* Balances Tab */}
                     {activeTab === 'balances' && (
                         <BalanceSummary
                             balanceData={balanceData}
-                            onSettleUp={(user) => setSettleTarget(user)}
+                            onSettleUp={(u) => setSettleTarget(u)}
                         />
                     )}
 
-                    {/* Settlements Tab */}
                     {activeTab === 'settlements' && (
                         <div className="space-y-3">
                             {settlements.length === 0 ? (
@@ -304,13 +289,20 @@ export default function GroupDetailPage() {
                                 />
                             ) : (
                                 settlements.map((s) => (
-                                    <SettlementCard key={s._id} settlement={s} />
+                                    <SettlementCard
+                                        key={s._id}
+                                        settlement={s}
+                                        currentUserId={user?._id}
+                                        onDeleted={(id) => {
+                                            setSettlements((prev) => prev.filter((st) => st._id !== id));
+                                            api.get(`/balances/group/${groupId}`).then((r) => setBalanceData(r.data.data));
+                                        }}
+                                    />
                                 ))
                             )}
                         </div>
                     )}
 
-                    {/* Members Tab */}
                     {activeTab === 'members' && (
                         <Card>
                             <div className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -339,13 +331,11 @@ export default function GroupDetailPage() {
                                                         <p className="text-sm font-medium text-gray-900 dark:text-white">
                                                             {m.user?.fullName}
                                                         </p>
-                                                        {/* Role badge */}
                                                         {m.role === 'ADMIN' && (
                                                             <span className="text-xs px-1.5 py-0.5 rounded-md bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 font-medium">
                                                                 Admin
                                                             </span>
                                                         )}
-                                                        {/* You badge */}
                                                         {m.user?._id === user?._id && (
                                                             <span className="text-xs px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-500 font-medium">
                                                                 You
@@ -358,7 +348,6 @@ export default function GroupDetailPage() {
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                {/* Remove button — admin only, not on self */}
                                                 {isAdmin &&
                                                     m.user?._id !== user?._id &&
                                                     m.role !== 'ADMIN' && (
@@ -380,14 +369,23 @@ export default function GroupDetailPage() {
                 </>
             )}
 
-            {/* ── Modals ── */}
             <AddExpenseModal
                 open={showAddExpense}
                 onClose={() => setShowAddExpense(false)}
                 groupId={groupId}
                 members={members}
-                onAdded={handleExpenseAdded}
+                onAdded={handleExpenseAddedOrUpdated}
             />
+
+            {editingExpense && (
+                <EditExpenseModal
+                    open={!!editingExpense}
+                    onClose={() => setEditingExpense(null)}
+                    expense={editingExpense}
+                    members={members}
+                    onUpdated={handleExpenseAddedOrUpdated}
+                />
+            )}
 
             <InviteMemberModal
                 open={showInvite}
@@ -405,7 +403,6 @@ export default function GroupDetailPage() {
                 />
             )}
 
-            {/* Remove member modal */}
             <Modal
                 open={showRemoveModal}
                 onClose={() => setShowRemoveModal(false)}
@@ -440,7 +437,6 @@ export default function GroupDetailPage() {
                 </div>
             </Modal>
 
-            {/* Leave Group modal */}
             <Modal
                 open={showLeaveModal}
                 onClose={() => setShowLeaveModal(false)}

@@ -29,15 +29,12 @@ const notificationSchema = new Schema(
         },
         relatedModel: {
             type: String,
-            enum: ['Expense', 'Group', 'Settlement']
+            enum: ['Expense', 'Group', 'Settlement', 'Invitation'] // FIXED: Added 'Invitation'
         }
     },
     {
         timestamps: true
     }
 );
-
-// Compound index for unread notifications query
-//notificationSchema.index({ userId: 1, isRead: 1, createdAt: -1 });
 
 export const Notification = mongoose.model("Notification", notificationSchema);

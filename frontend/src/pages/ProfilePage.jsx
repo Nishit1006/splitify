@@ -30,13 +30,13 @@ export default function ProfilePage() {
 
     const handleUpdateProfile = async (e) => {
         e.preventDefault();
-        if (!profile.fullName.trim() || !profile.email.trim()) {
-            toast.error('All fields are required');
+        if (!profile.fullName.trim()) {
+            toast.error('Full name is required');
             return;
         }
         setLoadingProfile(true);
         try {
-            await updateProfile(profile);
+            await updateProfile({ fullName: profile.fullName }); // Backend ignores email anyway
             toast.success('Profile updated!');
         } catch (err) {
             toast.error(err.response?.data?.message || 'Update failed');
@@ -146,8 +146,10 @@ export default function ProfilePage() {
                             label="Email"
                             type="email"
                             value={profile.email}
-                            onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                            disabled={true}
+                            className="opacity-70 cursor-not-allowed bg-gray-100 dark:bg-gray-800"
                         />
+                        <p className="text-xs text-gray-500 mt-[-10px] pb-2">Email address cannot be changed currently for security reasons.</p>
                         <Button type="submit" loading={loadingProfile} size="sm">
                             <Save className="w-4 h-4" /> Save Changes
                         </Button>

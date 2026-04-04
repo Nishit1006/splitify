@@ -7,23 +7,27 @@ import Button from '../../components/ui/Button';
 import api from '../../lib/api';
 
 export default function InviteMemberModal({ open, onClose, groupId }) {
-    const [username, setUsername] = useState('');
+    const [identifier, setIdentifier] = useState('');
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!username.trim()) {
-            toast.error('Username is required');
+        if (!identifier.trim()) {
+            toast.error('Email or username is required');
             return;
         }
+
         setLoading(true);
         try {
-            await api.post('/invitations/invite', { groupId, username: username.trim() });
-            toast.success(`Invitation sent to @${username}`);
-            setUsername('');
+            await api.post('/invitations/send', {
+                groupId,
+                identifier: identifier.trim()
+            });
+            toast.success(`Invitation sent successfully!`);
+            setIdentifier('');
             onClose();
         } catch (err) {
-            toast.error(err.response?.data?.message || 'Failed to invite');
+            toast.error(err.response?.data?.message || 'Failed to send invitation');
         } finally {
             setLoading(false);
         }
@@ -33,14 +37,15 @@ export default function InviteMemberModal({ open, onClose, groupId }) {
         <Modal open={open} onClose={onClose} title="Invite Member">
             <form onSubmit={handleSubmit} className="space-y-4">
                 <Input
-                    label="Username"
-                    placeholder="Enter their username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    label="Email Address or Username"
+                    type="text"
+                    placeholder="e.g., johndoe or john@example.com"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
                     autoFocus
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                    The user will receive an email invitation to join this group.
+                    If they have an account, they will receive an in-app notification. Otherwise, they will get an email link to join!
                 </p>
                 <div className="flex justify-end gap-3 pt-2">
                     <Button type="button" variant="ghost" onClick={onClose}>

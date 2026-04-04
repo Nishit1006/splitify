@@ -15,6 +15,11 @@ const invitationSchema = new Schema(
             lowercase: true,
             trim: true
         },
+        invitedBy: {
+            type: Schema.Types.ObjectId,
+            ref: "User",
+            required: true
+        },
         inviteToken: {
             type: String,
             required: true,
@@ -35,7 +40,6 @@ const invitationSchema = new Schema(
     { timestamps: true }
 );
 
-/* 🔐 Generate token BEFORE validation */
 invitationSchema.pre("validate", function () {
     if (!this.inviteToken) {
         const rawToken = crypto.randomBytes(32).toString("hex");
@@ -45,11 +49,10 @@ invitationSchema.pre("validate", function () {
             .update(rawToken)
             .digest("hex");
 
-        this._rawToken = rawToken; // not persisted
+        this._rawToken = rawToken;
     }
 });
 
-/* ⏰ Auto-delete expired invitations */
 invitationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export const Invitation = mongoose.model("Invitation", invitationSchema);

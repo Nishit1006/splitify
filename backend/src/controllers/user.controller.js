@@ -4,11 +4,8 @@ import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import crypto from "crypto";
-import { sendOtpEmail } from "../utils/email.js";
-import { sendResetPasswordEmail } from "../utils/email.js";
+import { sendOtpEmail, sendResetPasswordEmail } from "../utils/email.js";
 import { generateOtp } from "../utils/generateOtp.js";
-
-/* ================= TOKEN UTILS ================= */
 
 const generateAccessAndRefreshTokens = async (userId) => {
     try {
@@ -27,8 +24,6 @@ const generateAccessAndRefreshTokens = async (userId) => {
     }
 };
 
-/* ================= REGISTER ================= */
-
 export const registerUser = asyncHandler(async (req, res) => {
     let { fullName, email, username, password } = req.body;
 
@@ -39,7 +34,6 @@ export const registerUser = asyncHandler(async (req, res) => {
     email = email.toLowerCase().trim();
     username = username.toLowerCase().trim();
 
-    // ── Check for existing VERIFIED users ──
     const verifiedEmailExists = await User.findOne({ email, isVerified: true });
     if (verifiedEmailExists) {
         throw new ApiError(409, "Email already registered");
@@ -50,17 +44,24 @@ export const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(409, "Username already taken");
     }
 
-    // ── Clean up any old unverified accounts with same email or username ──
-    // This handles the case where someone registered with wrong email
-    // or wrong username and is trying again
     await User.deleteMany({
         isVerified: false,
+        emailOtpExpiry: { $lt: new Date() },
         $or: [{ email }, { username }]
     });
 
-    // ── Now safely create the new user ──
+    const activePendingUser = await User.findOne({
+        isVerified: false,
+        emailOtpExpiry: { $gt: new Date() },
+        $or: [{ email }, { username }]
+    });
+
+    if (activePendingUser) {
+        throw new ApiError(409, "An unverified account with this email/username is currently pending. Please wait 10 minutes or use a different one.");
+    }
+
     const otp = generateOtp();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
     await User.create({
         fullName,
@@ -81,8 +82,6 @@ export const registerUser = asyncHandler(async (req, res) => {
         new ApiResponse(201, null, "OTP sent to email")
     );
 });
-
-/* ================= LOGIN ================= */
 
 export const loginUser = asyncHandler(async (req, res) => {
     const { email, username, password } = req.body || {};
@@ -108,21 +107,27 @@ export const loginUser = asyncHandler(async (req, res) => {
         throw new ApiError(401, "Invalid credentials");
     }
 
-    const { accessToken, refreshToken } =
-        await generateAccessAndRefreshTokens(user._id);
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
 
-    const loggedInUser = await User.findById(user._id)
-        .select("-password -refreshToken");
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
 
-    const cookieOptions = {
+    const accessCookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "strict"
+        sameSite: "strict",
+        maxAge: 15 * 60 * 1000
+    };
+
+    const refreshCookieOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 7 * 24 * 60 * 60 * 1000
     };
 
     res.status(200)
-        .cookie("accessToken", accessToken, cookieOptions)
-        .cookie("refreshToken", refreshToken, cookieOptions)
+        .cookie("accessToken", accessToken, accessCookieOptions)
+        .cookie("refreshToken", refreshToken, refreshCookieOptions)
         .json(
             new ApiResponse(
                 200,
@@ -131,8 +136,6 @@ export const loginUser = asyncHandler(async (req, res) => {
             )
         );
 });
-
-/* ================= LOGOUT ================= */
 
 export const logoutUser = asyncHandler(async (req, res) => {
     await User.findByIdAndUpdate(req.user._id, {
@@ -151,11 +154,8 @@ export const logoutUser = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, {}, "User logged out successfully"));
 });
 
-/* ================= REFRESH TOKEN ================= */
-
 export const refreshAccessToken = asyncHandler(async (req, res) => {
-    const incomingRefreshToken =
-        req.cookies?.refreshToken || req.body?.refreshToken;
+    const incomingRefreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
 
     if (!incomingRefreshToken) {
         throw new ApiError(401, "Unauthorized request");
@@ -171,18 +171,25 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
         throw new ApiError(401, "Invalid refresh token");
     }
 
-    const { accessToken, refreshToken } =
-        await generateAccessAndRefreshTokens(user._id);
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
 
-    const options = {
+    const accessCookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "strict"
+        sameSite: "strict",
+        maxAge: 15 * 60 * 1000
+    };
+
+    const refreshCookieOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 7 * 24 * 60 * 60 * 1000
     };
 
     res.status(200)
-        .cookie("accessToken", accessToken, options)
-        .cookie("refreshToken", refreshToken, options)
+        .cookie("accessToken", accessToken, accessCookieOptions)
+        .cookie("refreshToken", refreshToken, refreshCookieOptions)
         .json(
             new ApiResponse(
                 200,
@@ -191,8 +198,6 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
             )
         );
 });
-
-/* ================= CHANGE PASSWORD ================= */
 
 export const changeCurrentPassword = asyncHandler(async (req, res) => {
     const { oldPassword, newPassword } = req.body || {};
@@ -216,35 +221,33 @@ export const changeCurrentPassword = asyncHandler(async (req, res) => {
     );
 });
 
-/* ================= CURRENT USER ================= */
-
 export const getCurrentUser = asyncHandler(async (req, res) => {
     res.status(200).json(
         new ApiResponse(200, req.user, "User fetched successfully")
     );
 });
 
-/* ================= UPDATE PROFILE ================= */
-
 export const updateAccountDetails = asyncHandler(async (req, res) => {
-    const { fullName, email } = req.body || {};
+    const { fullName } = req.body;
 
-    if (!fullName || !email) {
-        throw new ApiError(400, "All fields are required");
+    if (!fullName) {
+        throw new ApiError(400, "Full name is required");
     }
 
     const user = await User.findByIdAndUpdate(
-        req.user._id,
-        { fullName, email },
+        req.user?._id,
+        {
+            $set: {
+                fullName
+            }
+        },
         { new: true }
-    ).select("-password -refreshToken");
+    ).select("-password");
 
-    res.status(200).json(
-        new ApiResponse(200, user, "Account updated successfully")
+    return res.status(200).json(
+        new ApiResponse(200, user, "Account details updated successfully")
     );
 });
-
-/* ================= VERIFY EMAIL (token-based — legacy) ================= */
 
 export const verifyEmail = asyncHandler(async (req, res) => {
     const { token } = req.params;
@@ -265,8 +268,6 @@ export const verifyEmail = asyncHandler(async (req, res) => {
         new ApiResponse(200, null, "Email verified successfully")
     );
 });
-
-/* ================= VERIFY EMAIL OTP ================= */
 
 export const verifyEmailOtp = asyncHandler(async (req, res) => {
     const { email, otp } = req.body;
@@ -299,8 +300,6 @@ export const verifyEmailOtp = asyncHandler(async (req, res) => {
     );
 });
 
-/* ================= FORGOT PASSWORD ================= */
-
 export const forgotPassword = asyncHandler(async (req, res) => {
     const { email } = req.body;
 
@@ -324,8 +323,6 @@ export const forgotPassword = asyncHandler(async (req, res) => {
         new ApiResponse(200, null, "Reset password link sent to email")
     );
 });
-
-/* ================= RESET PASSWORD ================= */
 
 export const resetPassword = asyncHandler(async (req, res) => {
     const { token } = req.params;

@@ -41,7 +41,7 @@ const settlementSchema = new Schema(
             required: true
         },
         proof: {
-            type: String, // cloudinary url for payment proof
+            type: String,
         }
     },
     {
