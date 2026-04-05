@@ -99,7 +99,7 @@ export default function SignupPage() {
             </div>
 
             {/* Right panel */}
-            <div className="flex-1 flex items-center justify-center p-6 bg-[#F8FAFC] dark:bg-[#0B1120] relative">
+            <div className="flex-1 flex items-center justify-center p-6 bg-clay-bg relative">
                 <div className="absolute inset-0 gradient-mesh dark:gradient-mesh-dark pointer-events-none" />
                 <div ref={formRef} className="w-full max-w-md relative z-10">
                     <div className="lg:hidden flex items-center gap-2.5 mb-8">

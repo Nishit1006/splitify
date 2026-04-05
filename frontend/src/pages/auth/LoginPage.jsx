@@ -106,18 +106,18 @@ export default function LoginPage() {
             </div>
 
             {/* Right panel — form */}
-            <div className="flex-1 flex items-center justify-center p-6 bg-[#F8FAFC] dark:bg-[#0B1120] relative">
-                <div className="absolute inset-0 gradient-mesh dark:gradient-mesh-dark pointer-events-none" />
+            <div className="flex-1 flex items-center justify-center p-6 bg-clay-bg relative">
+                <div className="absolute inset-0 gradient-mesh dark:gradient-mesh-dark pointer-events-none opacity-60" />
                 <div ref={formRef} className="w-full max-w-md relative z-10">
                     {/* Mobile logo */}
                     <div className="lg:hidden flex items-center gap-2.5 mb-8">
-                        <div className="w-10 h-10 gradient-brand rounded-xl flex items-center justify-center shadow-lg shadow-brand-500/20">
+                        <div className="w-10 h-10 gradient-brand rounded-[16px] flex items-center justify-center shadow-clayBtn">
                             <Sparkles className="w-5 h-5 text-white" />
                         </div>
-                        <span className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">Splitify</span>
+                        <span className="text-xl font-black font-heading text-gray-900 dark:text-white tracking-tight">Splitify</span>
                     </div>
 
-                    <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-1.5 tracking-tight">Welcome back</h2>
+                    <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-1.5 tracking-tight">Welcome back</h2>
                     <p className="text-gray-500 dark:text-gray-400 mb-8">
                         Sign in to your account to continue
                     </p>

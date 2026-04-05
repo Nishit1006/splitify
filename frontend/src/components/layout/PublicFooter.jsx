@@ -3,17 +3,17 @@ import { Sparkles, Heart } from 'lucide-react';
 
 export default function PublicFooter() {
     return (
-        <footer className="border-t border-gray-200/60 dark:border-gray-800/40 bg-white dark:bg-gray-900 overflow-hidden relative">
+        <footer className="mt-20 rounded-t-[64px] bg-clay-card shadow-[0_-20px_60px_rgba(0,0,0,0.03)] dark:shadow-[0_-20px_60px_rgba(0,0,0,0.2)] overflow-hidden relative border-0">
             <div className="absolute inset-0 gradient-mesh dark:gradient-mesh-dark pointer-events-none opacity-50" />
             
             <div className="max-w-7xl mx-auto px-4 lg:px-8 py-12 relative z-10">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                     <div className="md:col-span-2 space-y-4">
                         <Link to="/" className="flex items-center gap-2.5 group w-fit">
-                            <div className="w-8 h-8 gradient-brand rounded-lg flex items-center justify-center">
-                                <Sparkles className="w-4 h-4 text-white" />
+                            <div className="w-10 h-10 gradient-brand rounded-[16px] flex items-center justify-center shadow-clayBtn">
+                                <Sparkles className="w-5 h-5 text-white" />
                             </div>
-                            <span className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
+                            <span className="text-xl font-black font-heading text-gray-900 dark:text-white tracking-tight">
                                 Splitify
                             </span>
                         </Link>

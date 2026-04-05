@@ -41,35 +41,34 @@ export default function Sidebar({ open, onClose }) {
                 />
             )}
 
-            {/* Sidebar */}
             <aside
                 className={cn(
                     'fixed top-0 left-0 z-40 h-full w-64',
-                    'bg-white/80 dark:bg-gray-900/70 glass',
-                    'border-r border-gray-200/60 dark:border-gray-800/40',
+                    'bg-clay-card backdrop-blur-xl',
+                    'border-r border-gray-200/40 dark:border-gray-800/20 shadow-clayCard',
                     'transform transition-transform duration-300 ease-in-out',
-                    'lg:translate-x-0 lg:static lg:z-auto',
+                    'lg:translate-x-0 lg:static lg:z-auto lg:rounded-r-[48px]',
                     open ? 'translate-x-0' : '-translate-x-full'
                 )}
             >
                 {/* Mobile header */}
                 <div className="flex items-center justify-between p-4 lg:hidden border-b border-gray-100/80 dark:border-gray-800/40">
                     <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 gradient-brand rounded-xl flex items-center justify-center shadow-lg shadow-brand-500/20">
+                        <div className="w-9 h-9 gradient-brand rounded-[16px] flex items-center justify-center shadow-clayBtn">
                             <Sparkles className="w-5 h-5 text-white" />
                         </div>
-                        <span className="text-lg font-bold text-gray-900 dark:text-white tracking-tight">Splitify</span>
+                        <span className="text-lg font-black font-heading text-gray-900 dark:text-white tracking-tight">Splitify</span>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 rounded-xl text-gray-500 hover:bg-gray-100/80 dark:hover:bg-gray-800/60 transition-all duration-200"
+                        className="p-2 rounded-[20px] bg-[#EFEBF5]/50 dark:bg-[#1e1b4b]/50 text-gray-500 shadow-sm transition-all duration-200 clay-btn-press"
                     >
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
                 {/* Navigation */}
-                <nav ref={navRef} className="p-4 space-y-1.5 lg:mt-20">
+                <nav ref={navRef} className="p-4 space-y-2 lg:mt-20">
                     {navItems.map((item) => (
                         <NavLink
                             key={item.to}
@@ -78,11 +77,11 @@ export default function Sidebar({ open, onClose }) {
                             onClick={onClose}
                             className={({ isActive }) =>
                                 cn(
-                                    'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium',
-                                    'transition-all duration-200 group',
+                                    'flex items-center gap-3 px-4 py-3 rounded-[20px] text-sm font-bold',
+                                    'transition-all duration-300 group clay-btn-press hover:-translate-y-1',
                                     isActive
-                                        ? 'gradient-brand text-white shadow-lg shadow-brand-500/25'
-                                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100/80 dark:hover:bg-gray-800/40 hover:text-gray-900 dark:hover:text-gray-200'
+                                        ? 'gradient-brand text-white shadow-clayBtn'
+                                        : 'text-gray-600 dark:text-gray-400 hover:bg-[#EFEBF5]/80 dark:hover:bg-[#1e1b4b]/80 hover:text-gray-900 dark:hover:text-gray-200 hover:shadow-sm'
                                 )
                             }
                         >
@@ -100,10 +99,10 @@ export default function Sidebar({ open, onClose }) {
                 </nav>
 
                 {/* Bottom branding */}
-                <div className="absolute bottom-4 left-4 right-4">
-                    <div className="px-4 py-3.5 rounded-2xl bg-gradient-to-br from-brand-50/80 to-violet-50/80 dark:from-brand-950/30 dark:to-violet-950/30 border border-brand-100/60 dark:border-brand-800/20">
-                        <p className="text-xs font-bold text-brand-700 dark:text-brand-300 tracking-wide">Splitify v2.0</p>
-                        <p className="text-[10px] text-brand-500/80 dark:text-brand-400/60 mt-0.5">Split smart, settle fast ✨</p>
+                <div className="absolute bottom-6 left-4 right-4">
+                    <div className="px-4 py-4 rounded-[24px] bg-gradient-to-br from-brand-50/80 to-violet-50/80 dark:from-brand-950/30 dark:to-violet-950/30 shadow-clayPressed border-0">
+                        <p className="text-xs font-black font-heading text-brand-700 dark:text-brand-300 tracking-wide uppercase">Splitify v2.0</p>
+                        <p className="text-[10px] font-bold text-brand-500/80 dark:text-brand-400/60 mt-0.5">Split smart, settle fast ✨</p>
                     </div>
                 </div>
             </aside>

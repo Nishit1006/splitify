@@ -22,23 +22,23 @@ export default function PublicNavbar() {
     };
 
     return (
-        <header className="sticky top-0 z-50 h-20 bg-white/70 dark:bg-gray-900/60 glass border-b border-gray-200/60 dark:border-gray-800/40">
+        <header className="sticky top-4 z-50 mx-4 lg:mx-8 h-16 sm:h-20 rounded-[32px] sm:rounded-[40px] bg-clay-card/90 backdrop-blur-xl shadow-clayCard border-b border-white/40 dark:border-white/5 transition-all duration-300">
             <div className="max-w-7xl mx-auto flex items-center justify-between h-full px-4 lg:px-8">
                 {/* Logo */}
                 <Link to="/" className="flex items-center gap-3 group">
-                    <div className="w-10 h-10 gradient-brand rounded-xl flex items-center justify-center shadow-lg shadow-brand-500/20 group-hover:scale-105 transition-transform duration-300">
+                    <div className="w-10 h-10 gradient-brand rounded-[16px] flex items-center justify-center shadow-clayBtn group-hover:scale-105 transition-transform duration-300">
                         <Sparkles className="w-5 h-5 text-white" />
                     </div>
-                    <span className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
+                    <span className="text-xl font-black font-heading text-gray-900 dark:text-white tracking-tight">
                         Splitify
                     </span>
                 </Link>
 
                 {/* Desktop Nav */}
                 <nav className="hidden md:flex items-center gap-8">
-                    <Link to="/about" className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">About Us</Link>
-                    <Link to="/faq" className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">FAQs</Link>
-                    <Link to="/contact" className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Contact</Link>
+                    <Link to="/about" className="text-sm font-bold text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">About Us</Link>
+                    <Link to="/faq" className="text-sm font-bold text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">FAQs</Link>
+                    <Link to="/contact" className="text-sm font-bold text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Contact</Link>
                 </nav>
 
                 {/* Right Actions */}
@@ -46,7 +46,7 @@ export default function PublicNavbar() {
                     <button
                         ref={themeRef}
                         onClick={handleThemeToggle}
-                        className="p-2.5 rounded-xl text-gray-500 hover:bg-gray-100/80 dark:text-gray-400 dark:hover:bg-gray-800/60 transition-all duration-200"
+                        className="p-2.5 rounded-[20px] text-gray-500 shadow-sm border border-transparent hover:shadow-clayPressed hover:border-brand-200/50 dark:hover:border-brand-800/50 dark:text-gray-400 bg-[#EFEBF5]/50 dark:bg-[#1e1b4b]/50 transition-all duration-200"
                         title={dark ? 'Light mode' : 'Dark mode'}
                     >
                         {dark ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5" />}
@@ -61,7 +61,7 @@ export default function PublicNavbar() {
                         </Link>
                     </div>
 
-                    <button className="md:hidden p-2 rounded-xl text-gray-500 hover:bg-gray-100/80 dark:hover:bg-gray-800/60 transition-colors">
+                    <button className="md:hidden p-2 rounded-[20px] bg-[#EFEBF5]/50 dark:bg-[#1e1b4b]/50 text-gray-500 shadow-sm transition-colors">
                         <Menu className="w-6 h-6" />
                     </button>
                 </div>

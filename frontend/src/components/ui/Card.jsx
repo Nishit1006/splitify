@@ -4,11 +4,11 @@ export default function Card({ children, className, hover = false, glass = false
     return (
         <div
             className={cn(
-                'rounded-2xl border transition-all duration-300',
+                'rounded-[28px] transition-all duration-300 border-t border-white/40 dark:border-white/5',
                 glass
-                    ? 'glass-card border-white/20 dark:border-gray-700/50'
-                    : 'bg-white dark:bg-gray-900/80 border-gray-100 dark:border-gray-800/60 shadow-card',
-                hover && 'hover:shadow-card-hover hover:-translate-y-1 cursor-pointer',
+                    ? 'glass-card backdrop-blur-xl'
+                    : 'bg-clay-card backdrop-blur-xl shadow-clayCard',
+                hover && 'hover:-translate-y-1 cursor-pointer',
                 className
             )}
             {...props}
@@ -20,7 +20,7 @@ export default function Card({ children, className, hover = false, glass = false
 
 export function CardHeader({ children, className }) {
     return (
-        <div className={cn('px-6 py-4 border-b border-gray-100/80 dark:border-gray-800/60', className)}>
+        <div className={cn('px-6 py-4 border-b border-gray-200/20 dark:border-gray-700/20', className)}>
             {children}
         </div>
     );

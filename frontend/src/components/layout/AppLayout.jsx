@@ -19,9 +19,13 @@ export default function AppLayout() {
     }, []);
 
     return (
-        <div className="h-screen flex overflow-hidden bg-[#F8FAFC] dark:bg-[#0B1120] relative">
-            {/* Gradient mesh background */}
-            <div className="fixed inset-0 gradient-mesh dark:gradient-mesh-dark pointer-events-none z-0" />
+        <div className="h-screen flex overflow-hidden relative">
+            {/* Claymorphism Background Blobs */}
+            <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+                <div className="absolute -top-[10%] -left-[10%] h-[60vh] w-[60vh] rounded-full blur-3xl bg-[#6366f1]/15 dark:bg-[#6366f1]/10 animate-clayFloat" />
+                <div className="absolute top-[40%] -right-[10%] h-[70vh] w-[70vh] rounded-full blur-3xl bg-[#8B5CF6]/15 dark:bg-[#8B5CF6]/10 animate-clayFloatDelayed" />
+                <div className="absolute top-[20%] left-[20%] h-[50vh] w-[50vh] rounded-full blur-3xl bg-[#0EA5E9]/15 dark:bg-[#0EA5E9]/10 animate-clayFloat animation-delay-4000" />
+            </div>
 
             <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 

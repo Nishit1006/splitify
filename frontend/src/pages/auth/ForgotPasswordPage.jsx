@@ -36,7 +36,7 @@ export default function ForgotPasswordPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-6 bg-[#F8FAFC] dark:bg-[#0B1120] relative">
+        <div className="min-h-screen flex items-center justify-center p-6 bg-clay-bg relative">
             <div className="absolute inset-0 gradient-mesh dark:gradient-mesh-dark pointer-events-none" />
             <div ref={containerRef} className="w-full max-w-md relative z-10">
                 <div className="text-center mb-8">
